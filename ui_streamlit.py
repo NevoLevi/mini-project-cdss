@@ -17,8 +17,9 @@ def patient_list() -> list[str]:
 def loinc_choices() -> list[str]:
     """Codes + unique component names."""
     codes = db.df["LOINC-NUM"].unique().tolist()
-    comps = list(cdss_loinc.COMP2CODE.keys())
-    return sorted(set(codes + comps))
+    #comps = list(cdss_loinc.COMP2CODE.keys())
+    #return sorted(set(codes + comps))
+    return sorted(set(codes))
 
 def valid_times(patient: str, code: str) -> list[str]:
     """Return ISO timestamps ('YYYY-MM-DDTHH:MM') of existing rows."""
