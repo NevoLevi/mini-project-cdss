@@ -50,7 +50,8 @@ class CDSSDatabase:
 
     # persistence
     def _load_excel(self):
-        df = pd.read_excel(self.path)
+        #df = pd.read_excel(self.path)
+        df = pd.read_excel(self.path, engine="openpyxl")
         df["Valid start time"] = pd.to_datetime(df["Valid start time"])
         df["Transaction time"] = pd.to_datetime(df["Transaction time"])
         df["Patient"] = (
