@@ -1,4 +1,6 @@
 # ui_streamlit.py — compliant UI
+from __future__ import annotations
+
 import streamlit as st
 import pandas as pd
 import altair as alt
@@ -21,6 +23,25 @@ def loinc_choices() -> list[str]:
     #return sorted(set(codes + comps))
     return sorted(set(codes))
 
+def loinc_choices_for(patient: str | None) -> list[str]:
+    """Return codes/components seen for *that* patient."""
+    if not patient:
+        return []                         # no patient yet → empty dropdown
+
+    # codes that actually appear for this patient
+    codes = db.df.loc[db.df["Patient"] == patient, "LOINC-NUM"].unique().tolist()
+
+    # # component aliases that map uniquely to one of those codes
+    # comps = [
+    #     comp for comp, code in cdss_loinc.COMP2CODE.items()
+    #     if code in codes
+    # ]
+    #return sorted(set(codes + comps))
+    return sorted(set(codes))
+
+
+
+
 def valid_times(patient: str, code: str) -> list[str]:
     """Return ISO timestamps ('YYYY-MM-DDTHH:MM') of existing rows."""
     m = (db.df["Patient"] == patient) & (db.df["LOINC-NUM"] == code)
@@ -41,7 +62,7 @@ with tab_hist:
     #patient = c1.text_input("Patient")
     patient = c1.selectbox( "Patient", options=patient_list(),index=None, placeholder="Start typing…")
     #code    = c1.text_input("LOINC code / component")
-    code = c1.selectbox("LOINC code / component", options=loinc_choices(), index=None)
+    code = c1.selectbox("LOINC code / component", options=loinc_choices_for(patient), index=None)
     f_date  = c2.date_input("From", date(2018, 5, 17))
     t_date  = c2.date_input("To",   date(2018, 5, 18))
     hour    = c3.selectbox("Hour (optional)", ["—"] + [f"{h:02}:00" for h in range(24)])
@@ -114,7 +135,7 @@ with tab_upd:
 
     cols = st.columns(3)
     patient_u = cols[0].selectbox("Patient", patient_list(), index=None, key="u_p")
-    code_u = cols[0].selectbox("Code / component", loinc_choices(), index=None, key="u_c")
+    code_u = cols[0].selectbox("Code / component", options=loinc_choices_for(patient), index=None, key="u_c")
 
     # container that will hold the selectbox once we have both keys
     time_container = cols[1].empty()
@@ -122,7 +143,15 @@ with tab_upd:
 
     # ------- dynamic time dropdown -------
     if patient_u and code_u:
-        choices = ["now"] + valid_times(patient_u, cdss_loinc.CDSSDatabase._normalise_code(db, code_u))
+        choices = (
+                ["now"] +
+                valid_times(
+                    patient_u,
+                    # use as-is if it looks like a code, else resolve via COMP2CODE
+                    code_u if cdss_loinc._CODE_RGX.match(code_u)
+                    else cdss_loinc.COMP2CODE.get(code_u.casefold(), "")
+                )
+        )
         when_u = time_container.selectbox(
             "Original Valid-time",
             choices,
@@ -161,7 +190,7 @@ with tab_del:
     c1, c2, c3 = st.columns(3)
 
     patient_d = c1.selectbox("Patient", patient_list(), index=None, key="d_p")
-    code_d = c1.selectbox("Code / component", loinc_choices(), index=None, key="d_c")
+    code_d = c1.selectbox("Code / component", options=loinc_choices_for(patient), index=None, key="d_c")
 
     date_box = c2.empty()
     hour_box = c3.empty()
