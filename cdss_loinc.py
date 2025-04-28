@@ -78,7 +78,7 @@ class CDSSDatabase:
         if not code:
             raise ValueError("Component ambiguous or not unique")
         return code
-
+    ## backup if I mess up :)
     def _with_name(self, df: pd.DataFrame) -> pd.DataFrame:
         return df.assign(LOINC_NAME=lambda d: d["LOINC-NUM"].map(LOINC2NAME))
 
