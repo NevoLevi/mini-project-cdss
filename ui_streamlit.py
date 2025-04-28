@@ -7,6 +7,9 @@ from cdss_loinc import CDSSDatabase, parse_dt
 
 db = CDSSDatabase()
 
+PATIENTS = sorted(db.df["Patient"].unique())      # refresh once at page load
+
+
 st.set_page_config(page_title="Mini-CDSS", layout="wide", page_icon="💉")
 st.markdown("<style>section.main > div {max-width: 1200px;}</style>", unsafe_allow_html=True)
 st.title("💉 Mini Clinical-Decision Support")
@@ -17,7 +20,8 @@ tab_hist, tab_upd, tab_del, tab_stat = st.tabs(["History", "Update", "Delete", "
 with tab_hist:
     st.subheader("History query")
     c1, c2, c3 = st.columns(3)
-    patient = c1.text_input("Patient")
+    #patient = c1.text_input("Patient")
+    patient = c1.selectbox( "Patient", options=PATIENTS,index=None, placeholder="Start typing…")
     code    = c1.text_input("LOINC code / component")
     f_date  = c2.date_input("From", date(2018, 5, 17))
     t_date  = c2.date_input("To",   date(2018, 5, 18))
@@ -77,7 +81,9 @@ with tab_hist:
 # ═════════ UPDATE ═════════
 with tab_upd:
     st.subheader("Update measurement")
-    patient_u = st.text_input("Patient", key="u_p")
+    #patient_u = st.text_input("Patient", key="u_p")
+    patient_u = st.selectbox("Patient", PATIENTS, index=None, key="u_p")
+
     code_u    = st.text_input("Code / component", key="u_c")
     when_u    = st.text_input("Original Valid-time (YYYY-MM-DDTHH:MM or now)", key="u_t")
     new_val   = st.text_input("New value", key="u_v")
@@ -92,7 +98,8 @@ with tab_upd:
 # ═════════ DELETE ═════════
 with tab_del:
     st.subheader("Delete measurement")
-    patient_d = st.text_input("Patient", key="d_p")
+    #patient_d = st.text_input("Patient", key="d_p")
+    patient_d = st.selectbox("Patient", PATIENTS, index=None, key="d_p")
     code_d    = st.text_input("Code / component", key="d_c")
     day_d     = st.text_input("Date (YYYY-MM-DD or today)", key="d_day")
     hh_opt    = st.selectbox("Hour (optional)", ["—"] + [f"{h:02}:00" for h in range(24)], key="d_hh")
