@@ -41,14 +41,6 @@ def loinc_choices_for(patient: str | None) -> list[str]:
 
 
 
-
-def valid_times(patient: str, code: str) -> list[str]:
-    """Return ISO timestamps ('YYYY-MM-DDTHH:MM') of existing rows."""
-    m = (db.df["Patient"] == patient) & (db.df["LOINC-NUM"] == code)
-    return sorted(db.df.loc[m, "Valid start time"].dt.strftime("%Y-%m-%dT%H:%M").unique())
-
-
-
 st.set_page_config(page_title="Mini-CDSS", layout="wide", page_icon="💉")
 st.markdown("<style>section.main > div {max-width: 1200px;}</style>", unsafe_allow_html=True)
 st.title("💉 Mini Clinical-Decision Support")
@@ -133,38 +125,27 @@ with tab_upd:
     #     except Exception as e:
     #         st.error(str(e))
 
-    cols = st.columns(3)
-    patient_u = cols[0].selectbox("Patient", patient_list(), index=None, key="u_p")
-    code_u = cols[0].selectbox("Code / component", options=loinc_choices_for(patient), index=None, key="u_c")
+    st.subheader("Update measurement")
+    patient_u = st.selectbox("Patient", patient_list(), index=None, key="u_p",
+                             placeholder="Start typing…")
 
-    # container that will hold the selectbox once we have both keys
-    time_container = cols[1].empty()
-    new_val = cols[2].text_input("New value", key="u_v")
+    code_u = st.selectbox(
+        "Code / component",
+        loinc_choices_for(patient_u),
+        index=None, key="u_c",
+        placeholder="Pick a patient first…" if not patient_u else "Start typing…",
+        disabled=patient_u is None
+    )
 
-    # ------- dynamic time dropdown -------
-    if patient_u and code_u:
-        choices = (
-                ["now"] +
-                valid_times(
-                    patient_u,
-                    # use as-is if it looks like a code, else resolve via COMP2CODE
-                    code_u if cdss_loinc._CODE_RGX.match(code_u)
-                    else cdss_loinc.COMP2CODE.get(code_u.casefold(), "")
-                )
-        )
-        when_u = time_container.selectbox(
-            "Original Valid-time",
-            choices,
-            index=0,   # default to "now"
-            key="u_t",
-            placeholder="Pick or type…"
-        )
-    else:
-        when_u = None    # not ready yet
+    when_u = st.text_input(
+        "Original Valid-time (YYYY-MM-DDTHH:MM or now)",
+        key="u_t"
+    )
+    new_val = st.text_input("New value", key="u_v")
 
-    if st.button("Apply update") and patient_u and code_u and when_u:
+    if st.button("Apply update"):
         try:
-            ts = datetime.now() if when_u == "now" else cdss_loinc.parse_dt(when_u)
+            ts = cdss_loinc.parse_dt(when_u)          # handles “now”
             st.dataframe(db.update(patient_u, code_u, ts, new_val))
             st.success("Row appended")
         except Exception as e:
@@ -187,40 +168,30 @@ with tab_del:
     #     except Exception as e:
     #         st.error(str(e))
 
-    c1, c2, c3 = st.columns(3)
+    patient_d = st.selectbox("Patient", patient_list(), index=None, key="d_p",
+                             placeholder="Start typing…")
 
-    patient_d = c1.selectbox("Patient", patient_list(), index=None, key="d_p")
-    code_d = c1.selectbox("Code / component", options=loinc_choices_for(patient), index=None, key="d_c")
+    code_d = st.selectbox(
+        "Code / component",
+        loinc_choices_for(patient_d),
+        index=None, key="d_c",
+        placeholder="Pick a patient first…" if not patient_d else "Start typing…",
+        disabled=patient_d is None
+    )
 
-    date_box = c2.empty()
-    hour_box = c3.empty()
+    day_d = st.text_input("Date (YYYY-MM-DD or today)", key="d_day")
+    hh_opt = st.selectbox(
+        "Hour (optional)", ["—"] + [f"{h:02}:00" for h in range(24)], key="d_hh"
+    )
 
-    if patient_d and code_d:
-        # full list of timestamps
-        ts_list = valid_times(patient_d, cdss_loinc.CDSSDatabase._normalise_code(db, code_d))
-        # split into unique dates and, later, hours
-        dates = sorted({t.split('T')[0] for t in ts_list})
-        sel_date = date_box.selectbox("Date", ["today"] + dates, index=0, key="d_day")
-
-        if sel_date == "today":
-            # deleting today's measurement → hour dropdown becomes blank
-            sel_hour = hour_box.selectbox("Hour (optional)", ["—"], index=0, key="d_hh")
-        else:
-            # hours that exist on that date
-            hours = [t.split('T')[1] for t in ts_list if t.startswith(sel_date)]
-            sel_hour = hour_box.selectbox("Hour (optional)", ["—"] + hours, index=0, key="d_hh")
-    else:
-        sel_date = sel_hour = None
-
-    if st.button("Delete") and patient_d and code_d and sel_date:
+    if st.button("Delete"):
         try:
-            day_obj = date.today() if sel_date == "today" else cdss_loinc.parse_dt(sel_date, date_only=True)
-            hh_obj = None if sel_hour in (None, "—") else time.fromisoformat(sel_hour)
+            day_obj = cdss_loinc.parse_dt(day_d, date_only=True)
+            hh_obj = None if hh_opt == "—" else time.fromisoformat(hh_opt)
             st.dataframe(db.delete(patient_d, code_d, day_obj, hh_obj))
             st.success("Deleted")
         except Exception as e:
             st.error(str(e))
-
 
 
 
