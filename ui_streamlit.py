@@ -55,8 +55,8 @@ with tab_hist:
     patient = c1.selectbox( "Patient", options=patient_list(),index=None, placeholder="Start typing…")
     #code    = c1.text_input("LOINC code / component")
     code = c1.selectbox("LOINC code / component", options=loinc_choices_for(patient), index=None)
-    f_date  = c2.date_input("From", date(2018, 5, 17))
-    t_date  = c2.date_input("To",   date(2018, 5, 18))
+    f_date  = c2.date_input("From", date(2025, 4, 17))
+    t_date  = c2.date_input("To",   date(2025, 4, 25))
     hour    = c3.selectbox("Hour (optional)", ["—"] + [f"{h:02}:00" for h in range(24)])
 
     if st.button("Run"):
