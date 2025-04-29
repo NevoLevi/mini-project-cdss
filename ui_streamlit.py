@@ -57,23 +57,37 @@ with tab_hist:
     code = c1.selectbox("LOINC code / component", options=loinc_choices_for(patient), index=None)
     f_date  = c2.date_input("From", date(2025, 4, 17))
     t_date  = c2.date_input("To",   date(2025, 4, 25))
-    hour    = c3.selectbox("Hour (optional)", ["—"] + [f"{h:02}:00" for h in range(24)])
 
-    if st.button("Run"):
+    #hour    = c3.selectbox("Hour (optional)", ["—"] + [f"{h:02}:00" for h in range(24)])
+    # NEW: hour-range (optional)
+    from_hhmm = c3.text_input("From HH:MM (optional)", placeholder="00:00")
+    to_hhmm   = c3.text_input("To HH:MM (optional)",   placeholder="23:59")
+
+    if st.button("Run") and patient and code:
         try:
-            hh = time.fromisoformat(hour) if hour != "—" else None
+            # ───── parse / default hour-range ─────
+            t_min = time.fromisoformat(from_hhmm) if from_hhmm else time(0, 0)
+            t_max = time.fromisoformat(to_hhmm) if to_hhmm else time(23, 59)
+
+            # build full datetimes
+            start_dt = datetime.combine(f_date, t_min)
+            end_dt = datetime.combine(t_date, t_max)
+
+            # hour argument no longer needed → pass None
             res = db.history(
                 patient, code,
-                datetime.combine(f_date, time.min),
-                datetime.combine(t_date, time.max),
-                hh
+                start_dt,
+                end_dt,
+                hh=None
             )
+
             st.success(f"{len(res)} rows")
             st.dataframe(res, use_container_width=True)
 
             if not res.empty:
                 # unified datetime axis
-                x_axis = alt.Axis(format="%Y-%m-%d %H:%M", labelAngle=-45, title="Timestamp")
+                x_axis = alt.Axis(format="%Y-%m-%d %H:%M", labelAngle=-45,
+                                  title="Timestamp")
                 numeric = pd.to_numeric(res["Value"], errors="coerce")
                 plot_df = res.copy()
 
@@ -84,7 +98,8 @@ with tab_hist:
                         .mark_line(point=True)
                         .encode(
                             x=alt.X("Valid start time:T", axis=x_axis),
-                            y=alt.Y("ValueNum:Q", title=f"{plot_df['Unit'].iloc[0]}"),
+                            y=alt.Y("ValueNum:Q",
+                                    title=f"{plot_df['Unit'].iloc[0]}"),
                             tooltip=["Valid start time:T", "ValueNum"]
                         )
                     )
@@ -107,8 +122,60 @@ with tab_hist:
 
                 st.altair_chart(chart, use_container_width=True)
 
-        except Exception as e:
+        except ValueError as e:  # bad HH:MM format or other issues
             st.error(str(e))
+
+
+    # if st.button("Run") and patient and code:
+    #     try:
+    #         hh = time.fromisoformat(hour) if hour != "—" else None
+    #         res = db.history(
+    #             patient, code,
+    #             datetime.combine(f_date, time.min),
+    #             datetime.combine(t_date, time.max),
+    #             hh
+    #         )
+    #         st.success(f"{len(res)} rows")
+    #         st.dataframe(res, use_container_width=True)
+    #
+    #         if not res.empty:
+    #             # unified datetime axis
+    #             x_axis = alt.Axis(format="%Y-%m-%d %H:%M", labelAngle=-45, title="Timestamp")
+    #             numeric = pd.to_numeric(res["Value"], errors="coerce")
+    #             plot_df = res.copy()
+    #
+    #             if numeric.notna().any():
+    #                 plot_df["ValueNum"] = numeric
+    #                 chart = (
+    #                     alt.Chart(plot_df)
+    #                     .mark_line(point=True)
+    #                     .encode(
+    #                         x=alt.X("Valid start time:T", axis=x_axis),
+    #                         y=alt.Y("ValueNum:Q", title=f"{plot_df['Unit'].iloc[0]}"),
+    #                         tooltip=["Valid start time:T", "ValueNum"]
+    #                     )
+    #                 )
+    #             else:
+    #                 cats = sorted(
+    #                     db.df[db.df["LOINC-NUM"] == plot_df["LOINC-NUM"].iloc[0]]
+    #                     ["Value"].astype(str).unique()
+    #                 )
+    #                 plot_df["cat"] = plot_df["Value"].astype(str)
+    #                 chart = (
+    #                     alt.Chart(plot_df)
+    #                     .mark_circle(size=100)
+    #                     .encode(
+    #                         x=alt.X("Valid start time:T", axis=x_axis),
+    #                         y=alt.Y("cat:N", sort=cats, title="Category"),
+    #                         tooltip=["Valid start time:T", "cat"]
+    #                     )
+    #                     .properties(height=max(300, len(cats) * 75))
+    #                 )
+    #
+    #             st.altair_chart(chart, use_container_width=True)
+    #
+    #     except Exception as e:
+    #         st.error(str(e))
 
 # ═════════ UPDATE ═════════
 with tab_upd:
