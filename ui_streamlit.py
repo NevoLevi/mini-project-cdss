@@ -50,18 +50,22 @@ tab_hist, tab_upd, tab_del, tab_stat = st.tabs(["History", "Update", "Delete", "
 # ═════════ HISTORY ═════════
 with tab_hist:
     st.subheader("History query")
-    c1, c2, c3 = st.columns(3)
-    #patient = c1.text_input("Patient")
-    patient = c1.selectbox( "Patient", options=patient_list(),index=None, placeholder="Start typing…")
-    #code    = c1.text_input("LOINC code / component")
-    code = c1.selectbox("LOINC code / component", options=loinc_choices_for(patient), index=None)
-    f_date  = c2.date_input("From", date(2025, 4, 17))
-    t_date  = c2.date_input("To",   date(2025, 4, 25))
+    c1, c2, col_hours = st.columns([2, 2, 3])  # or 4 equal columns: c1,c2,c3,c4
 
-    #hour    = c3.selectbox("Hour (optional)", ["—"] + [f"{h:02}:00" for h in range(24)])
-    # NEW: hour-range (optional)
-    from_hhmm = c3.text_input("From HH:MM (optional)", placeholder="00:00")
-    to_hhmm   = c3.text_input("To HH:MM (optional)",   placeholder="23:59")
+    # patient & dates ----------------------------------------------------------
+    patient = c1.selectbox("Patient", patient_list(), index=None,
+                           placeholder="Start typing…")
+    code = c1.selectbox("LOINC code / component",
+                        loinc_choices_for(patient), index=None)
+
+    f_date = c2.date_input("From date", date(2025, 4, 17))
+    t_date = c2.date_input("To date", date(2025, 4, 25))
+
+    # hour-range widgets side-by-side ------------------------------------------
+    h1, h2 = col_hours.columns(2)  # split the 3rd big column in two
+
+    from_hhmm = h1.text_input("From HH:MM", placeholder="00:00", key="hh_from")
+    to_hhmm = h2.text_input("To HH:MM", placeholder="23:59", key="hh_to")
 
     if st.button("Run") and patient and code:
         try:
