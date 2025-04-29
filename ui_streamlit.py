@@ -81,8 +81,8 @@ with tab_hist:
     # hour-range widgets side-by-side ------------------------------------------
     h1, h2 = col_hours.columns(2)  # split the 3rd big column in two
 
-    from_hhmm = h1.text_input("From HH:MM", placeholder="00:00", key="hh_from")
-    to_hhmm = h2.text_input("To HH:MM", placeholder="23:59", key="hh_to")
+    from_hhmm = h1.text_input("From HH:MM (Optional)", placeholder="00:00", key="hh_from")
+    to_hhmm = h2.text_input("To HH:MM (Optional)", placeholder="23:59", key="hh_to")
 
     if st.button("Run") and patient and code:
         try:
