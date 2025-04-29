@@ -1,6 +1,8 @@
 # ui_streamlit.py — compliant UI
 from __future__ import annotations
 
+import re
+
 import streamlit as st
 import pandas as pd
 import altair as alt
@@ -41,6 +43,21 @@ def loinc_choices_for(patient: str | None) -> list[str]:
 
 
 
+
+_HHMM_RGX = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")   # 00:00–23:59
+
+def parse_hhmm(txt: str | None) -> time | None:
+    """Return `time` if txt is valid HH:MM; else raise ValueError."""
+    if not txt:            # empty → caller will default later
+        return None
+    if not _HHMM_RGX.match(txt):
+        raise ValueError("Use HH:MM  (e.g., 08:30, 17:05)")
+    return time.fromisoformat(txt)
+
+
+
+
+
 st.set_page_config(page_title="Mini-CDSS", layout="wide", page_icon="💉")
 st.markdown("<style>section.main > div {max-width: 1200px;}</style>", unsafe_allow_html=True)
 st.title("💉 Mini Clinical-Decision Support")
@@ -69,9 +86,9 @@ with tab_hist:
 
     if st.button("Run") and patient and code:
         try:
-            # ───── parse / default hour-range ─────
-            t_min = time.fromisoformat(from_hhmm) if from_hhmm else time(0, 0)
-            t_max = time.fromisoformat(to_hhmm) if to_hhmm else time(23, 59)
+            # ── validate / default hour-range ─────────────────────────
+            t_min = parse_hhmm(from_hhmm) or time(0, 0)
+            t_max = parse_hhmm(to_hhmm) or time(23, 59)
 
             # build full datetimes
             start_dt = datetime.combine(f_date, t_min)
@@ -127,7 +144,7 @@ with tab_hist:
                 st.altair_chart(chart, use_container_width=True)
 
         except ValueError as e:  # bad HH:MM format or other issues
-            st.error(str(e))
+            st.warning(str(e))
 
 
     # if st.button("Run") and patient and code:
