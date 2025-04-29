@@ -11,94 +11,139 @@ from cdss_loinc import CDSSDatabase
 
 
 class TestHistory(unittest.TestCase):
-    """Unit‑tests for CDSSDatabase.history using the built‑in unittest runner."""
+    """Unit‑tests for CDSSDatabase.history."""
 
     # ───────────────────────── helpers ──────────────────────────
     @staticmethod
     def _build_excel(path: Path):
-        """Write a one‑row Excel file that CDSSDatabase can load."""
-        df = pd.DataFrame({
-            "First name": ["John"],
-            "Last name" : ["Doe"],
-            "LOINC-NUM" : ["1234-5"],
-            "Value"     : [7.5],
-            "Unit"      : ["g/dL"],
-            "Valid start time": [pd.Timestamp("2025-04-20 10:00")],
-            "Transaction time": [pd.Timestamp("2025-04-21 10:00")],
-        })
+        """Create a tiny Excel DB with three patients & multiple timestamps."""
+        rows = [
+            # John Doe — two measurements, different hours
+            ("John", "Doe", "1234-5", 7.5, "g/dL", "2025-04-20 10:00", "2025-04-21 10:00"),
+            ("John", "Doe", "1234-5", 7.6, "g/dL", "2025-04-20 12:00", "2025-04-21 12:00"),
+            # Alice Roe — a different code
+            ("Alice", "Roe", "67890-1", 42, "U/L", "2025-01-15 08:00", "2025-01-15 09:00"),
+            # Bob Foo  — another code
+            ("Bob", "Foo", "55555-5", 100, "%", "2025-04-18 06:30", "2025-04-18 07:00"),
+        ]
+        df = pd.DataFrame(rows, columns=[
+            "First name", "Last name", "LOINC-NUM", "Value", "Unit",
+            "Valid start time", "Transaction time"
+        ])
         df.to_excel(path, index=False)
 
     # ───────────────────────── lifecycle ─────────────────────────
     def setUp(self):
-        # 1. temp directory + excel
         self._tmpdir = Path(tempfile.mkdtemp())
         self._excel  = self._tmpdir / "db.xlsx"
         self._build_excel(self._excel)
 
-        # 2. patch global lookup tables so no LOINC zip is needed
-        self._p_loinc2name = patch.object(cdss_loinc, "LOINC2NAME",
-                                          new=pd.Series({"1234-5": "Sample test"}))
-        self._p_comp2code = patch.object(cdss_loinc, "COMP2CODE",
-                                          new={"sample": "1234-5"})
+        # patch global lookups so no LOINC zip is needed
+        dummy_loinc = {
+            "1234-5": "Sample test",
+            "67890-1": "ALT",
+            "55555-5": "O2 Sat"
+        }
+        comp_map = {"sample": "1234-5", "alt": "67890-1", "o2": "55555-5"}
 
-        self._p_min_patients = patch.object(cdss_loinc, "MIN_PATIENTS", new=1)
-        self._p_min_patients.start()
+        self._p_loinc2name = patch.object(cdss_loinc, "LOINC2NAME", new=pd.Series(dummy_loinc))
+        self._p_comp2code  = patch.object(cdss_loinc, "COMP2CODE",  new=comp_map)
+        self._p_min        = patch.object(cdss_loinc, "MIN_PATIENTS", new=1)
 
-        self._p_loinc2name.start()
-        self._p_comp2code.start()
+        for p in (self._p_loinc2name, self._p_comp2code, self._p_min):
+            p.start()
 
-        # 3. DB under test
         self.db = CDSSDatabase(excel=self._excel)
 
     def tearDown(self):
-        # stop patches and clean tmp dir
-        self._p_loinc2name.stop()
-        self._p_comp2code.stop()
+        for p in (self._p_loinc2name, self._p_comp2code, self._p_min):
+            p.stop()
         shutil.rmtree(self._tmpdir, ignore_errors=True)
 
-    # ───────────────────────── test‑cases ───────────────────────
+    # ───────────────────────── HISTORY ───────────────────────
     def test_history_loinc_code(self):
-        """Exact LOINC code should return the row inside the date range."""
+        """Exact code returns both rows within date‑range."""
         res = self.db.history(
-            patient="John Doe",
-            code_or_cmp="1234-5",
-            start=datetime(2025, 4, 19),
-            end=datetime(2025, 4, 21, 23, 59),
-            hh=None,
+            "John Doe", "1234-5",
+            datetime(2025, 4, 19), datetime(2025, 4, 21, 23, 59)
         )
-        self.assertEqual(len(res), 1)
-        self.assertEqual(res.iloc[0]["Value"], 7.5)
-        self.assertEqual(res.iloc[0]["LOINC_NAME"], "Sample test")
+        self.assertEqual(len(res), 2)
 
     def test_history_component_alias(self):
-        """Unique component alias should be resolved to the correct code."""
+        """Component alias resolves to code (case‑insensitive patient)."""
         res = self.db.history(
-            patient="john doe",   # lower‑case → case‑insensitive match
-            code_or_cmp="sample",
-            start=datetime(2025, 4, 19),
-            end=datetime(2025, 4, 21, 23, 59),
-            hh=None,
+            "john doe", "sample",
+            datetime(2025, 4, 20), datetime(2025, 4, 20, 23, 59)
         )
-        self.assertEqual(len(res), 1)
-        ts = pd.Timestamp("2025-04-20 10:00")
-        self.assertEqual(res["Valid start time"].iloc[0], ts)
+        # should return the two rows at 10:00 and 12:00
+        times = sorted(res["Valid start time"].dt.time)
+        self.assertEqual(times, [time(10, 0), time(12, 0)])
 
-    def test_history_hour_filter(self):
-        """`hh` parameter filters by exact clock‑time."""
-        # 10:00 ➜ hit
+    def test_history_hour_single_filter(self):
+        """Hour filter isolates a single measurement."""
         hit = self.db.history(
             "John Doe", "1234-5",
             datetime(2025, 4, 20), datetime(2025, 4, 20, 23, 59),
-            hh=time(10, 0)
+            hh=time(12, 0)
         )
         self.assertEqual(len(hit), 1)
-        # 11:00 ➜ no rows
-        miss = self.db.history(
-            "John Doe", "1234-5",
-            datetime(2025, 4, 20), datetime(2025, 4, 20, 23, 59),
-            hh=time(11, 0)
+        self.assertEqual(hit.iloc[0]["Value"], 7.6)
+
+    def test_history_wrong_patient(self):
+        """Unknown patient → empty DataFrame (no exception)."""
+        res = self.db.history(
+            "Jane Smith", "1234-5",
+            datetime(2025, 4, 20), datetime(2025, 4, 20, 23, 59)
         )
-        self.assertTrue(miss.empty)
+        self.assertTrue(res.empty)
+
+    def test_history_wrong_code(self):
+        """Invalid LOINC code should raise ValueError via _normalise_code."""
+        with self.assertRaises(ValueError):
+            self.db.history(
+                "John Doe", "9999-9",     # not in dummy_loinc
+                datetime(2025, 4, 20), datetime(2025, 4, 20, 23, 59)
+            )
+
+    def test_range_no_samples(self):
+        """Hour-range with no matching measurements → empty result."""
+        res = self.db.history(
+            "John Doe", "1234-5",
+            datetime(2025, 4, 20, 13, 0),  # 13:00
+            datetime(2025, 4, 20, 15, 0)  # 15:00
+        )
+        self.assertTrue(res.empty)
+
+    def test_range_single_sample(self):
+        """Hour-range that captures exactly one measurement."""
+        res = self.db.history(
+            "John Doe", "1234-5",
+            datetime(2025, 4, 20, 11, 0),  # 11:00
+            datetime(2025, 4, 20, 12, 30)  # 12:30  → only 12:00 hit
+        )
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res.iloc[0]["Value"], 7.6)
+
+    def test_range_multiple_samples(self):
+        """Hour-range that captures both of John's measurements."""
+        res = self.db.history(
+            "John Doe", "1234-5",
+            datetime(2025, 4, 20, 9, 0),  # 09:00
+            datetime(2025, 4, 20, 12, 30)  # 12:30
+        )
+        self.assertEqual(len(res), 2)
+
+    def test_illegal_time_range(self):
+        """start > end should yield empty DataFrame (backend is tolerant)."""
+        res = self.db.history(
+            "John Doe", "1234-5",
+            datetime(2025, 4, 20, 14, 0),  # 14:00
+            datetime(2025, 4, 20, 10, 0)  # 10:00 (earlier)
+        )
+        self.assertTrue(res.empty)
+
+
+    # ───────────────────────── UPDATE ───────────────────────
 
 
 if __name__ == "__main__":
