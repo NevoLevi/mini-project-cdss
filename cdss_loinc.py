@@ -3,9 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from datetime import datetime, date, time
 import pandas as pd, zipfile, re
-from backports.zoneinfo import ZoneInfo
 
-IL_TZ = ZoneInfo("Asia/Jerusalem")
 ROOT         = Path(__file__).absolute().parent
 EXCEL_PATH   = ROOT / "project_db.xlsx"
 LOINC_ZIP    = ROOT / "Loinc_2.80.zip"
@@ -118,8 +116,8 @@ class CDSSDatabase:
         code = self._normalise_code(code_or_cmp)
 
 
-        #now = now or datetime.now()
-        now = (now or datetime.now(tz=IL_TZ)).replace(second=0, microsecond=0)
+        now = now or datetime.now()
+        #now = (now or datetime.now(tz=IL_TZ)).replace(second=0, microsecond=0)
 
         m = (self.df["Patient"].str.casefold() == patient.casefold()) & \
             (self.df["LOINC-NUM"] == code) & \
