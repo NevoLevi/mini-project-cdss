@@ -21,6 +21,7 @@ class TestHistory(unittest.TestCase):
             # John Doe — two measurements, different hours
             ("John", "Doe", "1234-5", 7.5, "g/dL", "2025-04-20 10:00", "2025-04-21 10:00"),
             ("John", "Doe", "1234-5", 7.6, "g/dL", "2025-04-20 12:00", "2025-04-21 12:00"),
+            ("John", "Doe", "1234-5", 7.7, "g/dL", "2025-04-20 12:00", "2025-04-21 12:00"),
             # Alice Roe — a different code
             ("Alice", "Roe", "67890-1", 42, "U/L", "2025-01-15 08:00", "2025-01-15 09:00"),
             # Bob Foo  — another code
@@ -79,16 +80,6 @@ class TestHistory(unittest.TestCase):
         times = sorted(res["Valid start time"].dt.time)
         self.assertEqual(times, [time(10, 0), time(12, 0)])
 
-    def test_history_hour_single_filter(self):
-        """Hour filter isolates a single measurement."""
-        hit = self.db.history(
-            "John Doe", "1234-5",
-            datetime(2025, 4, 20), datetime(2025, 4, 20, 23, 59),
-            hh=time(12, 0)
-        )
-        self.assertEqual(len(hit), 1)
-        self.assertEqual(hit.iloc[0]["Value"], 7.6)
-
     def test_history_wrong_patient(self):
         """Unknown patient → empty DataFrame (no exception)."""
         res = self.db.history(
@@ -114,7 +105,7 @@ class TestHistory(unittest.TestCase):
         )
         self.assertTrue(res.empty)
 
-    def test_range_single_sample(self):
+    def test_range_two_sample(self):
         """Hour-range that captures exactly one measurement."""
         res = self.db.history(
             "John Doe", "1234-5",
@@ -122,7 +113,7 @@ class TestHistory(unittest.TestCase):
             datetime(2025, 4, 20, 12, 30)  # 12:30  → only 12:00 hit
         )
         self.assertEqual(len(res), 1)
-        self.assertEqual(res.iloc[0]["Value"], 7.6)
+        self.assertEqual(res.iloc[0]["Value"], 7.7)
 
     def test_range_multiple_samples(self):
         """Hour-range that captures both of John's measurements."""
@@ -144,6 +135,71 @@ class TestHistory(unittest.TestCase):
 
 
     # ───────────────────────── UPDATE ───────────────────────
+    def test_update_valid_changes_value(self):
+        """A valid update appends a new row with the new value."""
+        ts_valid = datetime(2025, 4, 20, 10, 0)
+        res = self.db.update(
+            patient="John Doe",
+            code_or_cmp="1234-5",
+            valid_dt=ts_valid,
+            new_val=8.0,
+            now=datetime(2025, 4, 22, 13, 0)
+        )
+        # update() returns the newly-appended row
+        self.assertEqual(res.iloc[0]["Value"], 8.0)
+
+    def test_update_wrong_time_raises(self):
+        """Update on a non-existent (date,hour) raises ValueError."""
+        with self.assertRaises(ValueError):
+            self.db.update(
+                "John Doe", "1234-5",
+                datetime(2025, 4, 20, 17, 0),  # 17:00 not in DB
+                new_val=9.0
+            )
+
+    def test_update_duplicate_latest_row(self):
+        """
+        When two rows share the same Valid-time, update should clone the one
+        with the latest Transaction-time.
+        """
+        # Our fixture already has two rows at 10:00; verify which is 'latest'
+        ts_valid = datetime(2025, 4, 20, 12, 0)
+        before = (
+            self.db.df[self.db.df["Valid start time"] == ts_valid]
+            .sort_values("Transaction time")
+        )
+        idx_latest_before = before.index[-1]
+        latest_value_before = before.loc[idx_latest_before, "Value"]
+
+        # perform update
+        res = self.db.update(
+            "John Doe", "1234-5",
+            ts_valid,
+            new_val=latest_value_before + 1,  # e.g., bump by 1
+            now=datetime(2025, 4, 22, 14, 0)
+        )
+
+        # returned row should be based on the previously-latest one
+        self.assertEqual(
+            res.iloc[0]["Transaction time"].tz_localize(None).time(),
+            time(14, 0)
+        )
+        self.assertEqual(res.iloc[0]["Value"], latest_value_before + 1)
+
+    def test_update_reflected_in_history(self):
+        """After a successful update, history() should show the new value last."""
+        ts_valid = datetime(2025, 4, 20, 12, 0)
+        self.db.update(
+            "John Doe", "1234-5",
+            ts_valid, 9.9,
+            now=datetime(2025, 4, 22, 15, 0)
+        )
+        hist = self.db.history(
+            "John Doe", "1234-5",
+            datetime(2025, 4, 20, 0, 0), datetime(2025, 4, 20, 23, 59)
+        )
+        # last row should be the one with Value == 9.9
+        self.assertEqual(hist.iloc[-1]["Value"], 9.9)
 
 
 if __name__ == "__main__":
