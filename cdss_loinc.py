@@ -9,7 +9,8 @@ EXCEL_PATH   = ROOT / "project_db.xlsx"
 LOINC_ZIP    = ROOT / "Loinc_2.80.zip"
 LOINC_TABLE  = "LoincTableCore/LoincTableCore.csv"
 MIN_PATIENTS = 10
-_CODE_RGX    = re.compile(r"^\d{1,5}-\d$")
+#_CODE_RGX    = re.compile(r"^\d{1,5}-\d$")
+_CODE_RGX = re.compile(r"^\d{1,6}-\d$")
 
 # ── load full LOINC release
 def _load_loinc():
