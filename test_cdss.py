@@ -284,6 +284,30 @@ class TestHistory(unittest.TestCase):
 
         self.assertEqual(len(day_rows()), 1)  # only the 10:00 measurement left
 
+    def test_delete_11_keeps_12(self):
+        """
+        Delete the 11:00 measurement; ensure 12:00 still present and row-count drops by 1.
+        """
+        ts11 = datetime(2025, 4, 20, 11, 0)
+        ts12 = datetime(2025, 4, 20, 12, 0)
+
+        # initial counts
+        day_rows = lambda: self.db.history(
+            "John Doe2", "1234-5",
+            datetime(2025, 4, 20), datetime(2025, 4, 20, 23, 59)
+        )
+        self.assertEqual(len(day_rows()), 3)
+
+        # delete 11:00
+        self.db.delete("John Doe2", "1234-5", ts11.date(), ts11.time())
+
+        remaining = day_rows()
+        self.assertEqual(len(remaining), 2)  # row-count dropped by 1
+
+        # 12:00 row still there
+        times_left = set(remaining["Valid start time"].dt.time)
+        self.assertIn(time(12, 0), times_left)
+
 
 if __name__ == "__main__":
     unittest.main()
