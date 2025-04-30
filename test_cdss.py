@@ -1,7 +1,7 @@
 import unittest
 import tempfile, shutil
 from pathlib import Path
-from datetime import datetime, time
+from datetime import datetime, time, date
 from unittest.mock import patch
 
 import pandas as pd
@@ -22,6 +22,10 @@ class TestHistory(unittest.TestCase):
             ("John", "Doe", "1234-5", 7.5, "g/dL", "2025-04-20 10:00", "2025-04-21 10:00"),
             ("John", "Doe", "1234-5", 7.6, "g/dL", "2025-04-20 12:00", "2025-04-21 12:00"),
             ("John", "Doe", "1234-5", 7.7, "g/dL", "2025-04-20 12:00", "2025-04-21 12:00"),
+            # John Doe2 — two measurements, different hours
+            ("John", "Doe2", "1234-5", 7.5, "g/dL", "2025-04-20 10:00", "2025-04-21 10:00"),
+            ("John", "Doe2", "1234-5", 7.6, "g/dL", "2025-04-20 11:00", "2025-04-21 12:00"),
+            ("John", "Doe2", "1234-5", 7.7, "g/dL", "2025-04-20 12:00", "2025-04-21 12:00"),
             # Alice Roe — a different code
             ("Alice", "Roe", "67890-1", 42, "U/L", "2025-01-15 08:00", "2025-01-15 09:00"),
             # Bob Foo  — another code
@@ -200,6 +204,85 @@ class TestHistory(unittest.TestCase):
         )
         # last row should be the one with Value == 9.9
         self.assertEqual(hist.iloc[-1]["Value"], 9.9)
+
+
+    # ───────────────────── tests for DELETE ──────────────────────
+    def test_delete_valid(self):
+        """Exact (date,hour) delete removes that row."""
+        day = datetime(2025, 4, 20).date()
+        hh10 = time(10, 0)
+
+        # ensure 10:00 exists first
+        self.assertFalse(self.db.history("John Doe", "1234-5",
+                                         datetime(2025, 4, 20, 10, 0),
+                                         datetime(2025, 4, 20, 10, 0)).empty)
+
+        self.db.delete("John Doe", "1234-5", day, hh10)
+
+        # now it should be gone
+        after = self.db.history("John Doe", "1234-5",
+                                datetime(2025, 4, 20, 10, 0),
+                                datetime(2025, 4, 20, 10, 0))
+        self.assertTrue(after.empty)
+
+    def test_delete_wrong_date_raises(self):
+        """No measurement on that date => ValueError."""
+        with self.assertRaises(ValueError):
+            self.db.delete(
+                "John Doe", "1234-5",
+                date(2025, 4, 19)  # John has no rows on the 19th
+            )
+
+    def test_delete_wrong_patient_raises(self):
+        """Unknown patient => ValueError."""
+        with self.assertRaises(ValueError):
+            self.db.delete(
+                "Jane Smith", "1234-5",
+                date(2025, 4, 20)
+            )
+
+    def test_update_then_delete(self):
+        """After one update+delete cycle John Doe should still have 2 rows."""
+        day_rows = lambda: self.db.history(
+            "John Doe2", "1234-5",
+            datetime(2025, 4, 20), datetime(2025, 4, 20, 23, 59)
+        )
+
+        initial_len = len(day_rows())  # should be 2 (10:00, 11:00 and 12:00)
+        self.assertEqual(initial_len, 3)
+
+        ts = datetime(2025, 4, 20, 12, 0)  # operate on 12:00 row
+        self.db.update("John Doe2", "1234-5", ts, 9.9,
+                       now=datetime(2025, 4, 22, 12, 0))
+        self.db.delete("John Doe2", "1234-5", ts.date(), ts.time())
+
+        self.assertEqual(len(day_rows()), 2)  # row-count unchanged
+
+    def test_update_delete_twice(self):
+        """
+        Two successive update+delete cycles should ultimately leave
+        exactly 1 row (only the 10:00 measurement survives).
+        """
+        day_rows = lambda: self.db.history(
+            "John Doe2", "1234-5",
+            datetime(2025, 4, 20), datetime(2025, 4, 20, 23, 59)
+        )
+
+        ts = datetime(2025, 4, 20, 12, 0)
+
+        # cycle 1
+        self.db.update("John Doe2", "1234-5", ts, 8.8,
+                       now=datetime(2025, 4, 22, 13, 0))
+        self.db.delete("John Doe2", "1234-5", ts.date(), ts.time())
+
+        ts = datetime(2025, 4, 20, 11, 0)
+
+        # cycle 2
+        self.db.update("John Doe2", "1234-5", ts, 8.9,
+                       now=datetime(2025, 4, 22, 14, 0))
+        self.db.delete("John Doe2", "1234-5", ts.date(), ts.time())
+
+        self.assertEqual(len(day_rows()), 1)  # only the 10:00 measurement left
 
 
 if __name__ == "__main__":
