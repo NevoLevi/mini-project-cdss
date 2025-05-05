@@ -141,11 +141,17 @@ class CDSSDatabase:
 
         if hh:
             target = datetime.combine(day, hh)
-            mask = (
+            timemask = (
                     (self.df["Patient"].str.casefold() == patient.casefold()) &
                     (self.df["LOINC-NUM"] == code) &
                     (self.df["Valid start time"] == target)
             )
+            if timemask.sum() == 0:
+                raise ValueError("No measurement at that date/time")
+
+            # keep only the newest *Transaction* row for that Valid-time
+            idx_last = self.df.loc[timemask, "Transaction time"].idxmax()
+            mask = self.df.index == idx_last
         else:
             start = datetime.combine(day, time.min)
             stop = datetime.combine(day, time.max)
