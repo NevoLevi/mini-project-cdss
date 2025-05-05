@@ -273,7 +273,7 @@ with tab_del:
             code_norm = db._normalise_code(code_d)
 
             # query the DB for that day
-            times = ["—"] + sorted(
+            times = ["Latest on this date"] + sorted(
                 db.df[
                     (db.df["Patient"] == patient_d) &
                     (db.df["LOINC-NUM"] == code_norm) &
