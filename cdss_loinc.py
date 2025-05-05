@@ -141,19 +141,30 @@ class CDSSDatabase:
 
         if hh:
             target = datetime.combine(day, hh)
-            mask = (self.df["Patient"].str.casefold() == patient.casefold()) & \
-                   (self.df["LOINC-NUM"] == code) & \
-                   (self.df["Valid start time"] == target)
+            mask = (
+                    (self.df["Patient"].str.casefold() == patient.casefold()) &
+                    (self.df["LOINC-NUM"] == code) &
+                    (self.df["Valid start time"] == target)
+            )
         else:
             start = datetime.combine(day, time.min)
-            stop  = datetime.combine(day, time.max)
-            daymask = (self.df["Patient"].str.casefold() == patient.casefold()) & \
-                      (self.df["LOINC-NUM"] == code) & \
-                      self.df["Valid start time"].between(start, stop)
+            stop = datetime.combine(day, time.max)
+            daymask = (
+                    (self.df["Patient"].str.casefold() == patient.casefold()) &
+                    (self.df["LOINC-NUM"] == code) &
+                    self.df["Valid start time"].between(start, stop)
+            )
             if daymask.sum() == 0:
                 raise ValueError("No measurement on that date")
-            idx_last = self.df.loc[daymask, "Valid start time"].idxmax()
-            mask = self.df.index == idx_last
+
+            # pick row with **latest Transaction-time** (true “last edit”)
+            idx_last = (
+                self.df.loc[daymask]
+                .sort_values("Transaction time")
+                .tail(1)
+                .index
+            )
+            mask = self.df.index.isin(idx_last)
 
         deleted = self.df.loc[mask]
         self.df.drop(index=deleted.index, inplace=True)
