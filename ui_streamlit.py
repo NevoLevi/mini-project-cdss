@@ -297,7 +297,7 @@ with tab_del:
     if st.button("Delete") and patient_d and code_d and day_txt:
         try:
             day_obj = parse_dt(day_txt, date_only=True)
-            hh_obj  = None if hh_sel == "—" else time.fromisoformat(hh_sel)
+            hh_obj  = None if hh_sel == "Latest on this date" else time.fromisoformat(hh_sel)
 
             st.dataframe(db.delete(patient_d, code_d, day_obj, hh_obj))
             st.success("Deleted")
