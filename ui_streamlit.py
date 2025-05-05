@@ -7,11 +7,13 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 from datetime import datetime, date, time
+from zoneinfo import ZoneInfo
 
 import cdss_loinc
 from cdss_loinc import CDSSDatabase, parse_dt
 
 db = CDSSDatabase()
+IL_TZ = ZoneInfo("Asia/Jerusalem")
 
 
 def patient_list() -> list[str]:
@@ -62,7 +64,7 @@ st.set_page_config(page_title="Mini-CDSS", layout="wide", page_icon="💉")
 st.markdown("<style>section.main > div {max-width: 1200px;}</style>", unsafe_allow_html=True)
 st.title("💉 Mini Clinical-Decision Support")
 
-tab_hist, tab_upd, tab_del, tab_stat = st.tabs(["History", "Update", "Delete", "Status"])
+tab_hist, tab_upd, tab_del = st.tabs(["History", "Update", "Delete"])
 
 # ═════════ HISTORY ═════════
 with tab_hist:
@@ -214,94 +216,97 @@ with tab_upd:
     #         st.error(str(e))
 
     st.subheader("Update measurement")
-    patient_u = st.selectbox("Patient", patient_list(), index=None, key="u_p",
-                             placeholder="Start typing…")
 
-    code_u = st.selectbox(
-        "Code / component",
+    # two‐column layout
+    c1, c2 = st.columns(2)
+
+    # Column 1: patient, code, and new value
+    patient_u = c1.selectbox(
+        "Patient", patient_list(), key="u_p"
+    )
+    code_u = c1.selectbox(
+        "LOINC code / component",
         loinc_choices_for(patient_u),
-        index=None, key="u_c",
-        placeholder="Pick a patient first…" if not patient_u else "Start typing…",
-        disabled=patient_u is None
+        key="u_c",
+        disabled=not patient_u
+    )
+    new_val = c1.text_input(
+        "New value", key="u_v"
     )
 
-    when_u = st.text_input(
-        "Original Valid-time (YYYY-MM-DDTHH:MM or now)",
-        key="u_t"
-    )
-    new_val = st.text_input("New value", key="u_v")
+    # Column 2: date picker and time+now button in one row
+    when_date = c2.date_input("Measurement date", key="upd_date")
 
-    if st.button("Apply update"):
+    col_time, col_now = c2.columns([3, 1])
+    when_time_str = col_time.text_input("Measurement time (HH:MM)", placeholder="HH:MM", key="upd_time_str")
+
+    with col_now:
+        st.markdown("<div style='height: 1.8em;'></div>", unsafe_allow_html=True)  # vertical spacer
+        st.button("Now", on_click=lambda: _set_now("upd"), key="update_now_btn")
+
+
+    def _set_now(prefix):
+        now = datetime.now(IL_TZ).replace(second=0, microsecond=0)
+        st.session_state[f"{prefix}_date"] = now.date()
+        st.session_state[f"{prefix}_time_str"] = now.strftime("%H:%M")
+
+
+    # Apply update button
+    if st.button("Apply update", key="apply_update_btn"):
         try:
-            ts = cdss_loinc.parse_dt(when_u)          # handles “now”
-            st.dataframe(db.update(patient_u, code_u, ts, new_val))
-            st.success("Row appended")
+            hh = parse_hhmm(st.session_state.upd_time_str)
+            valid_dt = datetime.combine(
+                st.session_state.upd_date,
+                hh
+            )
+            changed = db.update(patient_u, code_u, valid_dt, new_val)
+            st.success("Update appended")
+            st.dataframe(changed)
         except Exception as e:
             st.error(str(e))
-
 
 # ═════════ DELETE ═════════
 with tab_del:
     st.subheader("Delete measurement")
 
-    # --- 3 main columns: patient / loinc, date, time -------------
-    c1, c2, c3 = st.columns([3, 2, 2])
+    # ── Two‐column layout ─────────────────────────────────────────
+    c1, c2 = st.columns(2)
 
-    # patient & code (filtered lists you already have)
-    patient_d = c1.selectbox("Patient", patient_list(), index=None,
-                             placeholder="Start typing…", key="d_p")
-
+    # Column 1: patient & LOINC selector
+    patient_d = c1.selectbox(
+        "Patient", patient_list(), key="d_p"
+    )
     code_d = c1.selectbox(
         "LOINC code / component",
         loinc_choices_for(patient_d),
-        index=None,
-        placeholder="Select patient first…" if not patient_d else "Start typing…",
-        disabled=patient_d is None,
-        key="d_c"
+        key="d_c",
+        disabled=not patient_d
     )
 
-    # date text input so users can type 'today'
-    day_txt = c2.text_input("Date (YYYY-MM-DD or today)", key="d_day")
+    # Column 2: date and time+now
+    day_date = c2.date_input("Measurement date", key="d_date")
 
-    # -------- dynamic time dropdown (shows only existing times) ---
-    if patient_d and code_d and day_txt:
+    col_time_d, col_now_d = c2.columns([3, 1])
+    day_time_str = col_time_d.text_input("Measurement time (HH:MM)", placeholder="HH:MM", key="d_time_str")
+
+    with col_now_d:
+        st.markdown("<div style='height: 1.8em;'></div>", unsafe_allow_html=True)
+        st.button("Now", on_click=lambda: _set_now("d"), key="delete_now_btn")
+
+    # ── Action button ─────────────────────────────────────────
+    if st.button("Delete", key="delete_action_btn"):
         try:
-            # -> convert date string to date object (parse_dt handles 'today')
-            day_obj = parse_dt(day_txt, date_only=True)
-
-            # normalise code once
-            code_norm = db._normalise_code(code_d)
-
-            # query the DB for that day
-            times = ["Latest on this date"] + sorted(
-                db.df[
-                    (db.df["Patient"] == patient_d) &
-                    (db.df["LOINC-NUM"] == code_norm) &
-                    (db.df["Valid start time"].dt.date == day_obj)
-                ]["Valid start time"]
-                .dt.strftime("%H:%M")
-                .unique()
-                .tolist()
+            hh = None
+            if st.session_state.d_time_str:
+                hh = parse_hhmm(st.session_state.d_time_str)
+            deleted = db.delete(
+                patient_d,
+                code_d,
+                st.session_state.d_date,
+                hh
             )
-
-            hh_sel = c3.selectbox("Time (optional)", times, key="d_hh")
-
-        except Exception as e:
-            hh_sel = "—"
-            c3.warning(str(e))
-    else:
-        hh_sel = "—"
-        c3.selectbox("Time (optional)", ["—"], index=0, key="d_hh", disabled=True)
-
-    # -------------------------- action button --------------------
-    if st.button("Delete") and patient_d and code_d and day_txt:
-        try:
-            day_obj = parse_dt(day_txt, date_only=True)
-            hh_obj  = None if hh_sel == "Latest on this date" else time.fromisoformat(hh_sel)
-
-            st.dataframe(db.delete(patient_d, code_d, day_obj, hh_obj))
             st.success("Deleted")
-
+            st.dataframe(deleted)
         except Exception as e:
             st.error(str(e))
 
@@ -335,7 +340,7 @@ with tab_del:
 
 
 
-# ═════════ STATUS ═════════
-with tab_stat:
-    st.subheader("Current status (latest value per LOINC)")
-    st.dataframe(db.status(), use_container_width=True)
+# # ═════════ STATUS ═════════
+# with tab_stat:
+#     st.subheader("Current status (latest value per LOINC)")
+#     st.dataframe(db.status(), use_container_width=True)
