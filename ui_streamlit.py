@@ -243,43 +243,95 @@ with tab_upd:
 # ═════════ DELETE ═════════
 with tab_del:
     st.subheader("Delete measurement")
-    # patient_d = st.text_input("Patient", key="d_p")
-    # code_d    = st.text_input("Code / component", key="d_c")
-    # day_d     = st.text_input("Date (YYYY-MM-DD or today)", key="d_day")
-    # hh_opt    = st.selectbox("Hour (optional)", ["—"] + [f"{h:02}:00" for h in range(24)], key="d_hh")
-    #
-    # if st.button("Delete"):
-    #     try:
-    #         hh = time.fromisoformat(hh_opt) if hh_opt != "—" else None
-    #         st.dataframe(db.delete(patient_d, code_d, parse_dt(day_d, date_only=True), hh))
-    #         st.success("Deleted")
-    #     except Exception as e:
-    #         st.error(str(e))
 
-    patient_d = st.selectbox("Patient", patient_list(), index=None, key="d_p",
-                             placeholder="Start typing…")
+    # --- 3 main columns: patient / loinc, date, time -------------
+    c1, c2, c3 = st.columns([3, 2, 2])
 
-    code_d = st.selectbox(
-        "Code / component",
+    # patient & code (filtered lists you already have)
+    patient_d = c1.selectbox("Patient", patient_list(), index=None,
+                             placeholder="Start typing…", key="d_p")
+
+    code_d = c1.selectbox(
+        "LOINC code / component",
         loinc_choices_for(patient_d),
-        index=None, key="d_c",
-        placeholder="Pick a patient first…" if not patient_d else "Start typing…",
-        disabled=patient_d is None
+        index=None,
+        placeholder="Select patient first…" if not patient_d else "Start typing…",
+        disabled=patient_d is None,
+        key="d_c"
     )
 
-    day_d = st.text_input("Date (YYYY-MM-DD or today)", key="d_day")
-    hh_opt = st.selectbox(
-        "Hour (optional)", ["—"] + [f"{h:02}:00" for h in range(24)], key="d_hh"
-    )
+    # date text input so users can type 'today'
+    day_txt = c2.text_input("Date (YYYY-MM-DD or today)", key="d_day")
 
-    if st.button("Delete"):
+    # -------- dynamic time dropdown (shows only existing times) ---
+    if patient_d and code_d and day_txt:
         try:
-            day_obj = cdss_loinc.parse_dt(day_d, date_only=True)
-            hh_obj = None if hh_opt == "—" else time.fromisoformat(hh_opt)
+            # -> convert date string to date object (parse_dt handles 'today')
+            day_obj = parse_dt(day_txt, date_only=True)
+
+            # normalise code once
+            code_norm = db._normalise_code(code_d)
+
+            # query the DB for that day
+            times = ["—"] + sorted(
+                db.df[
+                    (db.df["Patient"] == patient_d) &
+                    (db.df["LOINC-NUM"] == code_norm) &
+                    (db.df["Valid start time"].dt.date == day_obj)
+                ]["Valid start time"]
+                .dt.strftime("%H:%M")
+                .unique()
+                .tolist()
+            )
+
+            hh_sel = c3.selectbox("Time (optional)", times, key="d_hh")
+
+        except Exception as e:
+            hh_sel = "—"
+            c3.warning(str(e))
+    else:
+        hh_sel = "—"
+        c3.selectbox("Time (optional)", ["—"], index=0, key="d_hh", disabled=True)
+
+    # -------------------------- action button --------------------
+    if st.button("Delete") and patient_d and code_d and day_txt:
+        try:
+            day_obj = parse_dt(day_txt, date_only=True)
+            hh_obj  = None if hh_sel == "—" else time.fromisoformat(hh_sel)
+
             st.dataframe(db.delete(patient_d, code_d, day_obj, hh_obj))
             st.success("Deleted")
+
         except Exception as e:
             st.error(str(e))
+
+
+# with tab_del:
+#     st.subheader("Delete measurement")
+#     patient_d = st.selectbox("Patient", patient_list(), index=None, key="d_p",
+#                              placeholder="Start typing…")
+#
+#     code_d = st.selectbox(
+#         "Code / component",
+#         loinc_choices_for(patient_d),
+#         index=None, key="d_c",
+#         placeholder="Pick a patient first…" if not patient_d else "Start typing…",
+#         disabled=patient_d is None
+#     )
+#
+#     day_d = st.text_input("Date (YYYY-MM-DD or today)", key="d_day")
+#     hh_opt = st.selectbox(
+#         "Hour (optional)", ["—"] + [f"{h:02}:00" for h in range(24)], key="d_hh"
+#     )
+#
+#     if st.button("Delete"):
+#         try:
+#             day_obj = cdss_loinc.parse_dt(day_d, date_only=True)
+#             hh_obj = None if hh_opt == "—" else time.fromisoformat(hh_opt)
+#             st.dataframe(db.delete(patient_d, code_d, day_obj, hh_obj))
+#             st.success("Deleted")
+#         except Exception as e:
+#             st.error(str(e))
 
 
 
