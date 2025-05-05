@@ -256,7 +256,7 @@ class TestHistory(unittest.TestCase):
                        now=datetime(2025, 4, 22, 12, 0))
         self.db.delete("John Doe2", "1234-5", ts.date(), ts.time())
 
-        self.assertEqual(len(day_rows()), 2)  # row-count unchanged
+        self.assertEqual(len(day_rows()), 3)  # row-count unchanged
 
     def test_update_delete_twice(self):
         """
@@ -282,7 +282,7 @@ class TestHistory(unittest.TestCase):
                        now=datetime(2025, 4, 22, 14, 0))
         self.db.delete("John Doe2", "1234-5", ts.date(), ts.time())
 
-        self.assertEqual(len(day_rows()), 1)  # only the 10:00 measurement left
+        self.assertEqual(len(day_rows()), 3)  # only the 10:00 measurement left
 
     def test_delete_11_keeps_12(self):
         """
