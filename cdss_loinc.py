@@ -122,6 +122,9 @@ class CDSSDatabase:
 
         # use Israel local time, rounded to minute
         now = (now or datetime.now(tz=IL_TZ)).replace(second=0, microsecond=0)
+        # then drop tzinfo so Excel can handle it
+        now_aware = (now or datetime.now(tz=IL_TZ)).replace(second=0, microsecond=0)
+        now = now_aware.replace(tzinfo=None)
 
         m = (self.df["Patient"].str.casefold() == patient.casefold()) & \
             (self.df["LOINC-NUM"] == code) & \
