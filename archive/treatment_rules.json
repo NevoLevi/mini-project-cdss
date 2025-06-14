@@ -1,0 +1,17 @@
+{
+  "male": {
+    "Severe Anemia + Pancytopenia + Grade 1": "\u2022 Measure BP once a week",
+    "Moderate Anemia + Anemia + Grade 2": "\u2022 Measure BP every 3 days\\n\u2022 Give aspirin 5g twice a week",
+    "Mild Anemia + Suspected Leukemia + Grade 3": "\u2022 Measure BP every day\\n\u2022 Give aspirin 15g every day\\n\u2022 Diet consultation",
+    "Normal Hemoglobin + Leukemoid reaction + Grade 4": "\u2022 Measure BP twice a day\\n\u2022 Give aspirin 15g every day\\n\u2022 Exercise consultation\\n\u2022 Diet consultation",
+    "Polyhemia + Suspected Polycytemia Vera + Grade 4": "\u2022 Measure BP every hour\\n\u2022 Give 1 gr magnesium every hour\\n\u2022 Exercise consultation\\n\u2022 Call family"
+  },
+  "female": {
+    "Severe Anemia + Pancytopenia + Grade 1": "\u2022 Measure BP every 3 days",
+    "Moderate Anemia + Anemia + Grade 2": "\u2022 Measure BP every 3 days\\n\u2022 Give Celectone 2g twice a day for two days drug treatment",
+    "Mild Anemia + Suspected Leukemia + Grade 3": "\u2022 Measure BP every day\\n\u2022 Give 1 gr magnesium every 3 hours\\n\u2022 Diet consultation",
+    "Normal Hemoglobin + Leukemoid reaction + Grade 4": "\u2022 Measure BP twice a day\\n\u2022 Give 1 gr magnesium every hour\\n\u2022 Exercise consultation\\n\u2022 Diet consultation",
+    "Polyhemia + Suspected Polycytemia Vera + Grade 4": "\u2022 Measure BP every hour\\n\u2022 Give 1 gr magnesium every hour\\n\u2022 Exercise consultation\\n\u2022 Call help",
+    "Critical Anemia + Pancytopenia + GRADE I": "EMERGENCY: Immediate transfusion\\nMonitor every 30 minutes\\nContact ICU"
+  }
+}

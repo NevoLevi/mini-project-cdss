@@ -1,0 +1,288 @@
+{
+  "classification_tables": {
+    "hemoglobin_state": {
+      "type": "1:1",
+      "inputs": [
+        "Hemoglobin-level",
+        "Gender"
+      ],
+      "output": "Hemoglobin-state",
+      "rules": {
+        "female": {
+          "ranges": [
+            {
+              "min": 0.0,
+              "max": 8.0,
+              "state": "Severe Anemia"
+            },
+            {
+              "min": 8.0,
+              "max": 10.0,
+              "state": "Moderate Anemia"
+            },
+            {
+              "min": 10.0,
+              "max": 12.0,
+              "state": "Mild Anemia"
+            },
+            {
+              "min": 12.0,
+              "max": 14.0,
+              "state": "Normal Hemoglobin"
+            },
+            {
+              "min": 14.0,
+              "max": 999.0,
+              "state": "Polycytemia"
+            },
+            {
+              "min": 0,
+              "max": 0,
+              "state": ""
+            }
+          ]
+        },
+        "male": {
+          "ranges": [
+            {
+              "min": 0,
+              "max": 9,
+              "state": "Severe Anemia"
+            },
+            {
+              "min": 9,
+              "max": 11,
+              "state": "Moderate Anemia"
+            },
+            {
+              "min": 11,
+              "max": 13,
+              "state": "Mild Anemia"
+            },
+            {
+              "min": 13,
+              "max": 16,
+              "state": "Normal Hemoglobin"
+            },
+            {
+              "min": 16,
+              "max": 999,
+              "state": "Polyhemia"
+            }
+          ]
+        }
+      }
+    },
+    "hematological_state": {
+      "type": "2:1_AND",
+      "inputs": [
+        "Hemoglobin-level",
+        "WBC-level",
+        "Gender"
+      ],
+      "output": "Hematological-state",
+      "rules": {
+        "female": {
+          "hgb_partitions": [
+            "0-12",
+            "12-14",
+            "14+"
+          ],
+          "wbc_partitions": [
+            "0-4000",
+            "4000-10000",
+            "10000+"
+          ],
+          "matrix": [
+            [
+              "Pancytopenia",
+              "Leukopenia",
+              "Suspected Polycytemia Vera"
+            ],
+            [
+              "Anemia",
+              "Normal",
+              "Polyhemia"
+            ],
+            [
+              "Suspected Leukemia",
+              "Leukemoid reaction",
+              "Suspected Polycytemia Vera"
+            ]
+          ]
+        },
+        "male": {
+          "hgb_partitions": [
+            "0-13",
+            "13-16",
+            "16+"
+          ],
+          "wbc_partitions": [
+            "0-4000",
+            "4000-10000",
+            "10000+"
+          ],
+          "matrix": [
+            [
+              "Pancytopenia",
+              "Leukopenia",
+              "Suspected Polycytemia Vera"
+            ],
+            [
+              "Anemia",
+              "Normal",
+              "Polyhemia"
+            ],
+            [
+              "Suspected Leukemia",
+              "Leukemoid reaction",
+              "Suspected Polycytemia Vera"
+            ]
+          ]
+        }
+      }
+    },
+    "systemic_toxicity": {
+      "type": "4:1_MAXIMAL_OR",
+      "inputs": [
+        "Fever",
+        "Chills",
+        "Skin-look",
+        "Allergic-state"
+      ],
+      "output": "Systemic-Toxicity",
+      "condition": "Therapy = CCTG522",
+      "rules": {
+        "Fever": [
+          {
+            "range": [
+              0,
+              38.5
+            ],
+            "grade": "GRADE I",
+            "description": "0\u05d2\u20ac\u201c38.5 Celsius"
+          },
+          {
+            "range": [
+              38.5,
+              40.0
+            ],
+            "grade": "GRADE II",
+            "description": "38.5\u05d2\u20ac\u201c40.0 Celsius"
+          },
+          {
+            "range": [
+              40.0,
+              999
+            ],
+            "grade": "GRADE III",
+            "description": "40.0+ Celsius"
+          }
+        ],
+        "Chills": [
+          {
+            "value": "None",
+            "grade": "GRADE I"
+          },
+          {
+            "value": "Shaking",
+            "grade": "GRADE II"
+          },
+          {
+            "value": "Rigor",
+            "grade": "GRADE III"
+          }
+        ],
+        "Skin-look": [
+          {
+            "value": "Erythema",
+            "grade": "GRADE I"
+          },
+          {
+            "value": "Vesiculation",
+            "grade": "GRADE II"
+          },
+          {
+            "value": "Desquamation",
+            "grade": "GRADE III"
+          },
+          {
+            "value": "Exfoliation",
+            "grade": "GRADE IV"
+          }
+        ],
+        "Allergic-state": [
+          {
+            "value": "Edema",
+            "grade": "GRADE I"
+          },
+          {
+            "value": "Bronchospasm",
+            "grade": "GRADE II"
+          },
+          {
+            "value": "Severe-Bronchospasm",
+            "grade": "GRADE III"
+          },
+          {
+            "value": "Anaphylactic-Shock",
+            "grade": "GRADE IV"
+          }
+        ]
+      }
+    }
+  },
+  "treatments": {
+    "male": {
+      "Severe Anemia + Pancytopenia + GRADE I": "\u05d2\u20ac\u00a2 Measure BP once a week",
+      "Moderate Anemia + Anemia + GRADE II": "\u05d2\u20ac\u00a2 Measure BP every 3 days\n\u05d2\u20ac\u00a2 Give aspirin 5g twice a week",
+      "Mild Anemia + Suspected Leukemia + GRADE III": "\u05d2\u20ac\u00a2 Measure BP every day\n\u05d2\u20ac\u00a2 Give aspirin 15g every day\n\u05d2\u20ac\u00a2 Diet consultation",
+      "Normal Hemoglobin + Leukemoid reaction + GRADE IV": "\u05d2\u20ac\u00a2 Measure BP twice a day\n\u05d2\u20ac\u00a2 Give aspirin 15g every day\n\u05d2\u20ac\u00a2 Exercise consultation\n\u05d2\u20ac\u00a2 Diet consultation",
+      "Polyhemia + Suspected Polycytemia Vera + GRADE IV": "\u05d2\u20ac\u00a2 Measure BP every hour\n\u05d2\u20ac\u00a2 Give 1 gr magnesium every hour\n\u05d2\u20ac\u00a2 Exercise consultation\n\u05d2\u20ac\u00a2 Call family"
+    },
+    "female": {
+      "Severe Anemia + Pancytopenia + GRADE I": "\u05d2\u20ac\u00a2 Measure BP every 3 days",
+      "Moderate Anemia + Anemia + GRADE II": "\u05d2\u20ac\u00a2 Measure BP every 3 days\n\u05d2\u20ac\u00a2 Give Celectone 2g twice a day for two days drug treatment",
+      "Mild Anemia + Suspected Leukemia + GRADE III": "\u05d2\u20ac\u00a2 Measure BP every day\n\u05d2\u20ac\u00a2 Give 1 gr magnesium every 3 hours\n\u05d2\u20ac\u00a2 Diet consultation",
+      "Normal Hemoglobin + Leukemoid reaction + GRADE IV": "\u05d2\u20ac\u00a2 Measure BP twice a a day\n\u05d2\u20ac\u00a2 Give 1 gr magnesium every hour\n\u05d2\u20ac\u00a2 Exercise consultation\n\u05d2\u20ac\u00a2 Diet consultation",
+      "Polyhemia + Suspected Polycytemia Vera + GRADE IV": "\u05d2\u20ac\u00a2 Measure BP every hour\n\u05d2\u20ac\u00a2 Give 1 gr magnesium every hour\n\u05d2\u20ac\u00a2 Exercise consultation\n\u05d2\u20ac\u00a2 Call help"
+    }
+  },
+  "validity_periods": {
+    "30313-1": {
+      "name": "Hemoglobin",
+      "before_good": "7 days, 0:00:00",
+      "after_good": "7 days, 0:00:00"
+    },
+    "26464-8": {
+      "name": "WBC",
+      "before_good": "3 days, 0:00:00",
+      "after_good": "3 days, 0:00:00"
+    },
+    "39106-0": {
+      "name": "Temperature",
+      "before_good": "12:00:00",
+      "after_good": "12:00:00"
+    },
+    "CHILLS-OBS": {
+      "name": "Chills",
+      "before_good": "12:00:00",
+      "after_good": "12:00:00"
+    },
+    "SKIN-OBS": {
+      "name": "Skin-look",
+      "before_good": "2 days, 0:00:00",
+      "after_good": "2 days, 0:00:00"
+    },
+    "ALLERGY-OBS": {
+      "name": "Allergic-state",
+      "before_good": "12:00:00",
+      "after_good": "12:00:00"
+    },
+    "THERAPY-STATUS": {
+      "name": "Therapy",
+      "before_good": "30 days, 0:00:00",
+      "after_good": "30 days, 0:00:00"
+    }
+  }
+}

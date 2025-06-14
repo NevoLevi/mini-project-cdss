@@ -1,0 +1,65 @@
+{
+  "Database_Structure": {
+    "Patient_Demographics": {
+      "description": "Patient baseline information that doesn't change over time",
+      "columns": [
+        "Patient_ID",
+        "First_name",
+        "Last_name",
+        "Gender",
+        "Age",
+        "Date_of_Birth"
+      ],
+      "notes": "Gender is here as a patient attribute, not a timed measurement"
+    },
+    "Lab_Results": {
+      "description": "Laboratory test results with real LOINC codes",
+      "columns": [
+        "Patient_ID",
+        "LOINC_Code",
+        "LOINC_Description",
+        "Value",
+        "Unit",
+        "Valid_Start_Time",
+        "Transaction_Time",
+        "Result_Type"
+      ],
+      "real_loinc_codes": {
+        "30313-1": "Hemoglobin [Mass/volume] in Arterial blood",
+        "26464-8": "Leukocytes [#/volume] in Blood",
+        "39106-0": "Temperature of Skin",
+        "76477-9": "Heart rate by Noninvasive",
+        "80266-0": "Bowel sounds by Auscultation",
+        "11218-5": "Microalbumin [Mass/volume] in Urine by Test strip"
+      }
+    },
+    "Clinical_Observations": {
+      "description": "Clinical observations and assessments without LOINC codes",
+      "columns": [
+        "Patient_ID",
+        "Observation_Type",
+        "Observation_Value",
+        "Observation_Date",
+        "Recorded_By",
+        "Notes"
+      ],
+      "observation_types": [
+        "Chills",
+        "Skin_Appearance",
+        "Allergic_Reaction",
+        "Therapy_Status"
+      ],
+      "notes": "These are clinical assessments, not lab tests, so no LOINC codes needed"
+    }
+  },
+  "CDSS_Parameter_Mapping": {
+    "Hemoglobin-level": "Lab_Results.LOINC_Code = '30313-1'",
+    "WBC-level": "Lab_Results.LOINC_Code = '26464-8'",
+    "Gender": "Patient_Demographics.Gender",
+    "Fever": "Lab_Results.LOINC_Code = '39106-0'",
+    "Chills": "Clinical_Observations.Observation_Type = 'Chills'",
+    "Skin-look": "Clinical_Observations.Observation_Type = 'Skin_Appearance'",
+    "Allergic-state": "Clinical_Observations.Observation_Type = 'Allergic_Reaction'",
+    "Therapy": "Clinical_Observations.Observation_Type = 'Therapy_Status'"
+  }
+}

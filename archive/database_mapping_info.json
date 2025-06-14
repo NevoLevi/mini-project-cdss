@@ -1,0 +1,57 @@
+{
+  "LOINC_Mappings": {
+    "30313-1": {
+      "name": "Hemoglobin",
+      "parameter": "Hemoglobin-level",
+      "description": "Hemoglobin [Mass/volume] in Arterial blood",
+      "unit": "g/dL",
+      "system_requirement": true
+    },
+    "39106-0": {
+      "name": "Temperature",
+      "parameter": "Fever",
+      "description": "Temperature of Skin",
+      "unit": "degrees-celsius",
+      "system_requirement": true
+    },
+    "76477-9": {
+      "name": "Heart Rate",
+      "parameter": "Heart-Rate",
+      "description": "Heart rate by Noninvasive",
+      "unit": "BPM",
+      "system_requirement": false
+    },
+    "80266-0": {
+      "name": "Bowel Sounds",
+      "parameter": "Bowel-Sounds",
+      "description": "Bowel sounds by Auscultation",
+      "unit": "none",
+      "system_requirement": false
+    },
+    "11218-5": {
+      "name": "Albumin",
+      "parameter": "Albumin-Level",
+      "description": "Microalbumin [Mass/volume] in Urine by Test strip",
+      "unit": "none",
+      "system_requirement": false
+    }
+  },
+  "Synthetic_LOINC_Codes": {
+    "WBC-level": "26464-8",
+    "Gender": "76689-9",
+    "Chills": "43724-2",
+    "Skin-look": "8302-2",
+    "Allergic-state": "52473-6",
+    "Therapy": "18629-5"
+  },
+  "Required_Parameters_Status": {
+    "Hemoglobin-level": "\u2713 Available (LOINC 30313-1)",
+    "WBC-level": "\u2713 Synthetic (LOINC 26464-8)",
+    "Gender": "\u2713 Synthetic (LOINC 76689-9)",
+    "Fever": "\u2713 Available (LOINC 39106-0 - Temperature)",
+    "Chills": "\u2713 Synthetic (LOINC 43724-2)",
+    "Skin-look": "\u2713 Synthetic (LOINC 8302-2)",
+    "Allergic-state": "\u2713 Synthetic (LOINC 52473-6)",
+    "Therapy": "\u2713 Synthetic (LOINC 18629-5)"
+  }
+}
