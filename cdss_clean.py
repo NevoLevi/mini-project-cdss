@@ -1,7 +1,7 @@
 from __future__ import annotations
 from pathlib import Path
 from datetime import datetime, date, time, timedelta
-from kb_editor import load_validity_periods
+from kb_editor import get_validity_for
 import pandas as pd
 import json
 
@@ -78,7 +78,7 @@ class CleanCDSSDatabase:
 
 
 
-        validity = load_validity_periods(loinc_code)
+        validity = get_validity_for(loinc_code)
 
 
 
