@@ -67,7 +67,7 @@ class CleanCDSSDatabase:
         
         # Define validity periods (Before-Good and After-Good) - Clinically realistic values
         validity_periods = {
-            '30313-1': {'before_good': timedelta(days=2), 'after_good': timedelta(days=7)},    # Hemoglobin: stable for ~1 week
+            '30313-1': {'before_good': timedelta(days=7), 'after_good': timedelta(days=2)},    # Hemoglobin: stable for ~1 week
             '26464-8': {'before_good': timedelta(hours=12), 'after_good': timedelta(days=3)},  # WBC: changes faster, ~3 days
             '39106-0': {'before_good': timedelta(days=30), 'after_good': timedelta(days=7)},   # Temperature: extended for demo data
         }
