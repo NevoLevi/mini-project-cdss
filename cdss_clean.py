@@ -93,7 +93,9 @@ class CleanCDSSDatabase:
             return None, None
             
         # Get the latest record within validity window
-        latest_record = lab_data.sort_values('Valid_Start_Time').tail(1)
+        #latest_record = lab_data.sort_values('Valid_Start_Time').tail(1)
+        latest_record = lab_data.sort_values('Transaction_Time').tail(1)
+
         return latest_record['Value'].iloc[0], latest_record['Unit'].iloc[0]
 
     def get_latest_clinical_observation(self, patient_id: str, observation_type: str, query_time: datetime = None) -> str:
