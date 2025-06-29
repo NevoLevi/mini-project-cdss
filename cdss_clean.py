@@ -83,8 +83,10 @@ class CleanCDSSDatabase:
         lab_data = self.lab_results_df[
             (self.lab_results_df['Patient_ID'] == patient_id) & 
             (self.lab_results_df['LOINC_Code'] == loinc_code) &
-            (self.lab_results_df['Valid_Start_Time'] >= earliest_valid) &
-            (self.lab_results_df['Valid_Start_Time'] <= latest_valid)
+            # (self.lab_results_df['Valid_Start_Time'] >= earliest_valid) &
+            # (self.lab_results_df['Valid_Start_Time'] <= latest_valid)
+            (self.lab_results_df['Transaction_Time'] >= earliest_valid) &
+            (self.lab_results_df['Transaction_Time'] <= latest_valid)
         ]
         
         if lab_data.empty:
