@@ -5,7 +5,7 @@ import pandas as pd
 import json
 
 ROOT = Path(__file__).absolute().parent
-CLEAN_DB_PATH = ROOT / "test.xlsx"
+CLEAN_DB_PATH = ROOT / "cdss_database_v7.xlsx"
 MAPPING_PATH = ROOT / "clean_database_mapping.json"
 
 class CleanCDSSDatabase:
