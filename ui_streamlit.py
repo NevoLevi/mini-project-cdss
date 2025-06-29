@@ -652,8 +652,7 @@ with tab_dashboard:
             with col4:
                 st.markdown("**💊 Treatment Status**")
                 recommendation = patient_row.get('Recommendation', 'N/A')
-                if recommendation in ["N/A", "No specific treatment"]:
-                #if recommendation and recommendation not in ["N/A", "No specific treatment"]:
+                if recommendation and recommendation not in ["N/A", "No specific treatment"]:
                     st.markdown("""
                     <div class="status-success">
                         <strong>✅ Active Treatment</strong>
