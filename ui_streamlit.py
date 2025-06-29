@@ -533,7 +533,16 @@ with tab_dashboard:
             # Patient details in columns
             col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 
-            #DEBUG
+            # ═════════ DEBUG WINDOW ═════════
+            with st.expander("🛠 Debug log"):
+                if "debug_lines" not in st.session_state:
+                    st.session_state.debug_lines = []
+
+                for line in st.session_state.debug_lines:
+                    st.code(line, language="text")
+
+
+            #DEBUG #
             st.session_state.debug_lines.append(f"Update triggered at asd")
 
             with col1:
@@ -1591,14 +1600,6 @@ with tab_del:
 
 
 
-
-# ═════════ DEBUG WINDOW ═════════
-with st.expander("🛠 Debug log"):
-    if "debug_lines" not in st.session_state:
-        st.session_state.debug_lines = []
-
-    for line in st.session_state.debug_lines:
-        st.code(line, language="text")
 
 
 
