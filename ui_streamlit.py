@@ -533,7 +533,7 @@ with tab_dashboard:
             # Patient details in columns
             col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 
-            #DEBUG
+            #DEBUG #
             st.session_state.debug_lines.append(f"Update triggered at asd")
 
             with col1:
