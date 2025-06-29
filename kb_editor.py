@@ -16,7 +16,8 @@ def load_validity_periods(key: str):
         entry = data["validity_periods"][key]
         #before = parse_duration(entry["before_good"])
         #after = parse_duration(entry["after_good"])
-        return entry["before_good"], entry["after_good"]
+        #return before, after
+        return entry
     except KeyError:
         print(f"No validity period found for key: {key}")
         return None
