@@ -65,21 +65,11 @@ class CleanCDSSDatabase:
         """Get latest lab value for a specific LOINC code with validity periods"""
         if query_time is None:
             query_time = datetime.now()
-        
-        # # Define validity periods (Before-Good and After-Good) - Clinically realistic values
-        # validity_periods = {
-        #     '30313-1': {'before_good': timedelta(days=7), 'after_good': timedelta(days=2)},    # Hemoglobin: stable for ~1 week
-        #     '26464-8': {'before_good': timedelta(hours=12), 'after_good': timedelta(days=3)},  # WBC: changes faster, ~3 days
-        #     '39106-0': {'before_good': timedelta(days=30), 'after_good': timedelta(days=7)},   # Temperature: extended for demo data
-        # }
-        #
-        # Get validity period for this LOINC code
-        # validity = validity_periods.get(loinc_code, {'before_good': timedelta(hours=4), 'after_good': timedelta(hours=8)})
 
 
-
-        validity = get_validity_for(loinc_code)
-
+        #validity = get_validity_for(loinc_code)
+        validity = {"before_good": timedelta(hours=4),
+            "after_good": timedelta(hours=4)}
 
 
         # Calculate valid time window
