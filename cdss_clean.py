@@ -67,9 +67,9 @@ class CleanCDSSDatabase:
             query_time = datetime.now()
 
 
-        #validity = get_validity_for(loinc_code)
-        validity = {"before_good": timedelta(hours=4),
-            "after_good": timedelta(hours=4)}
+        validity = get_validity_for(loinc_code)
+        #validity = {"before_good": timedelta(hours=4),
+        #    "after_good": timedelta(hours=4)}
 
 
         # Calculate valid time window
