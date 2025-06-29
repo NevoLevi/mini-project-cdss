@@ -32,50 +32,18 @@ def get_validity_for(loinc_code: str):
 
 def parse_duration(s: str) -> timedelta:
     """Convert 'X days, HH:MM:SS' or 'HH:MM:SS' to timedelta."""
-    if "days" in s:
-        days_part, time_part = s.split(" days, ")
-        days = int(days_part)
-    else:
-        days = 0
-        time_part = s
+    try:
+        if "days" in s:
+            days_part, time_part = s.split(" days, ")
+            days = int(days_part)
+        else:
+            days = 0
+            time_part = s
 
-    h, m, sec = map(int, time_part.split(":"))
-    return timedelta(days=days, hours=h, minutes=m, seconds=sec)
-
-
-
-
-
-
-
-# def load_validity_periods(key: str):
-#     with open(KB_PATH, "r", encoding="utf-8") as f:
-#         data = json.load(f)
-#
-#     try:
-#         entry = data["validity_periods"][key]
-#         #before = parse_duration(entry["before_good"])
-#         #after = parse_duration(entry["after_good"])
-#         #return before, after
-#         return entry
-#     except KeyError:
-#         print(f"No validity period found for key: {key}")
-#         return None
-#
-# def parse_duration(s: str):
-#     """Parse durations like '3 days, 0:00:00' or '12:00:00'"""
-#     if "days" in s:
-#         parts = s.split(" days, ")
-#         days = int(parts[0])
-#         time_part = parts[1]
-#     else:
-#         days = 0
-#         time_part = s
-#
-#     h, m, s = map(int, time_part.split(":"))
-#     return timedelta(days=days, hours=h, minutes=m, seconds=s)
-
-
+        h, m, sec = map(int, time_part.split(":"))
+        return timedelta(days=days, hours=h, minutes=m, seconds=sec)
+    except:
+        return timedelta(days=1)
 
 
 

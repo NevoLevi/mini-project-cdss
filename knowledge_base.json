@@ -251,13 +251,13 @@
   "validity_periods": {
     "30313-1": {
       "name": "Hemoglobin",
-      "before_good": "7 days, 0:00:00",
-      "after_good": "7 days, 0:00:00"
+      "before_good": "7 days",
+      "after_good": "7 days"
     },
     "26464-8": {
       "name": "WBC",
-      "before_good": "3 days, 0:00:00",
-      "after_good": "3 days, 0:00:00"
+      "before_good": "3 days",
+      "after_good": "3 days"
     },
     "39106-0": {
       "name": "Temperature",
@@ -271,8 +271,8 @@
     },
     "SKIN-OBS": {
       "name": "Skin-look",
-      "before_good": "2 days, 0:00:00",
-      "after_good": "2 days, 0:00:00"
+      "before_good": "2 days",
+      "after_good": "2 days"
     },
     "ALLERGY-OBS": {
       "name": "Allergic-state",
@@ -281,8 +281,8 @@
     },
     "THERAPY-STATUS": {
       "name": "Therapy",
-      "before_good": "30 days, 0:00:00",
-      "after_good": "30 days, 0:00:00"
+      "before_good": "30 days",
+      "after_good": "30 days"
     }
   }
 }
