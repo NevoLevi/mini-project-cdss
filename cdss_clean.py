@@ -75,6 +75,9 @@ class CleanCDSSDatabase:
         # Calculate valid time window
         earliest_valid = query_time - validity['after_good']
         latest_valid = query_time + validity['before_good']
+
+        #I KNOW ITS THE AFTER AND BEFORE IS INVERTED, ITS OKAY!!
+
         
         # Filter for patient, LOINC code, and validity window
         lab_data = self.lab_results_df[
