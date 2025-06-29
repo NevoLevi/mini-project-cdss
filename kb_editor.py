@@ -36,12 +36,12 @@ def parse_duration(s: str) -> timedelta:
         if "days" in s:
             days_part, time_part = int(str(s).split(' ')[0])
             days = int(days_part)
+            return timedelta(days=days)
         else:
             days = 0
             time_part = s
-
-        h, m, sec = map(int, time_part.split(":"))
-        return timedelta(days=days, hours=h, minutes=m, seconds=sec)
+            h, m, sec = map(int, time_part.split(":"))
+            return timedelta(days=days, hours=h, minutes=m, seconds=sec)
 
     except:
         return timedelta(days=3)
