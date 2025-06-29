@@ -34,7 +34,7 @@ def parse_duration(s: str) -> timedelta:
     """Convert 'X days, HH:MM:SS' or 'HH:MM:SS' to timedelta."""
     try:
         if "days" in s:
-            days_part, time_part = s.split(" days, ")
+            days_part, time_part = int(str(s).split(' ')[0])
             days = int(days_part)
         else:
             days = 0
@@ -42,8 +42,9 @@ def parse_duration(s: str) -> timedelta:
 
         h, m, sec = map(int, time_part.split(":"))
         return timedelta(days=days, hours=h, minutes=m, seconds=sec)
+
     except:
-        return timedelta(days=1)
+        return timedelta(days=3)
 
 
 
