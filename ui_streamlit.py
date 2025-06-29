@@ -533,6 +533,10 @@ with tab_dashboard:
             # Patient details in columns
             col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 
+
+
+
+
             # ═════════ DEBUG WINDOW ═════════
             with st.expander("🛠 Debug log"):
                 if "debug_lines" not in st.session_state:
@@ -541,9 +545,17 @@ with tab_dashboard:
                 for line in st.session_state.debug_lines:
                     st.code(line, language="text")
 
+            #DEBUG ##
+            st.session_state.debug_lines.append(f"{patient_row}")
 
-            #DEBUG #
-            st.session_state.debug_lines.append(f"Update triggered at asd")
+            st.session_state.debug_lines.append(f"{patient_row.get('Hemoglobin-level', 'N/A')}")
+
+
+
+
+
+
+
 
             with col1:
                 st.markdown("**👤 Demographics**")
