@@ -1,9 +1,43 @@
+from datetime import timedelta
+
 import streamlit as st
 import json
 from pathlib import Path
 
 # Constants
 KB_PATH = "knowledge_base.json"
+
+
+def load_validity_periods(key: str):
+    with open(KB_PATH, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    try:
+        entry = data["validity_periods"][key]
+        before = parse_duration(entry["before_good"])
+        after = parse_duration(entry["after_good"])
+        return before, after
+    except KeyError:
+        print(f"No validity period found for key: {key}")
+        return None
+
+def parse_duration(s: str):
+    """Parse durations like '3 days, 0:00:00' or '12:00:00'"""
+    if "days" in s:
+        parts = s.split(" days, ")
+        days = int(parts[0])
+        time_part = parts[1]
+    else:
+        days = 0
+        time_part = s
+
+    h, m, s = map(int, time_part.split(":"))
+    return timedelta(days=days, hours=h, minutes=m, seconds=s)
+
+
+
+
+
 
 def load_kb():
     """Load knowledge base from JSON file."""
