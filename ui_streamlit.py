@@ -532,7 +532,10 @@ with tab_dashboard:
             
             # Patient details in columns
             col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
-            
+
+            #DEBUG
+            st.session_state.debug_lines.append(f"Update triggered at asd")
+
             with col1:
                 st.markdown("**👤 Demographics**")
                 st.metric("Gender", patient_row.get('Gender', 'N/A'))
@@ -1585,6 +1588,18 @@ with tab_del:
             st.dataframe(deleted)
         except Exception as e:
             st.error(str(e))
+
+
+
+
+# ═════════ DEBUG WINDOW ═════════
+with st.expander("🛠 Debug log"):
+    if "debug_lines" not in st.session_state:
+        st.session_state.debug_lines = []
+
+    for line in st.session_state.debug_lines:
+        st.code(line, language="text")
+
 
 
 # with tab_del:
