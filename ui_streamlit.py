@@ -548,7 +548,7 @@ with tab_dashboard:
 
             #DEBUG ##
             st.session_state.debug_lines.append(f"{query_dt}")
-            st.session_state.debug_lines.append(query_dt.to_string(index=False))
+            st.session_state.debug_lines.append(df_states.to_string(index=False))
 
             st.session_state.debug_lines.append(f"{df_states}")
 
