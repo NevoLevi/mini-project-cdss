@@ -545,10 +545,11 @@ with tab_dashboard:
                 for line in st.session_state.debug_lines:
                     st.code(line, language="text")
 
-            #DEBUG ##
-            st.session_state.debug_lines.append(f"{patient_row}")
 
-            st.session_state.debug_lines.append(f"{patient_row.get('Hemoglobin-level', 'N/A')}")
+            #DEBUG ##
+            st.session_state.debug_lines.append(f"{query_dt}")
+
+            st.session_state.debug_lines.append(f"{df_states}")
 
 
 
