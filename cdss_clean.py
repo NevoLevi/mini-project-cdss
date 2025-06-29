@@ -72,7 +72,7 @@ class CleanCDSSDatabase:
         #     '26464-8': {'before_good': timedelta(hours=12), 'after_good': timedelta(days=3)},  # WBC: changes faster, ~3 days
         #     '39106-0': {'before_good': timedelta(days=30), 'after_good': timedelta(days=7)},   # Temperature: extended for demo data
         # }
-        
+        #
         # Get validity period for this LOINC code
         # validity = validity_periods.get(loinc_code, {'before_good': timedelta(hours=4), 'after_good': timedelta(hours=8)})
 
