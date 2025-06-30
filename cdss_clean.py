@@ -130,7 +130,7 @@ class CleanCDSSDatabase:
         """Calculate all patient states for CDSS"""
         if query_time is None:
             # Use current time around June 12, 2025 to match data
-            query_time = datetime(2025, 6, 12, 20, 0, 0)
+            query_time = datetime(2025, 6, 20, 20, 0, 0)
             
         states = {}
         
@@ -147,7 +147,7 @@ class CleanCDSSDatabase:
         states['Hemoglobin_Level'] = hemoglobin_val
         states['WBC_Level'] = wbc_val  
         states['Temperature'] = temp_val
-        
+
         # Get clinical observations
         states['Chills'] = self.get_latest_clinical_observation(patient_id, 'Chills', query_time)
         states['Skin_Appearance'] = self.get_latest_clinical_observation(patient_id, 'Skin_Appearance', query_time)
