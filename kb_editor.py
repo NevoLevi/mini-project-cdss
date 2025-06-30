@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import re
 
 import streamlit as st
 import json
@@ -191,7 +192,10 @@ def build_treatment_rules_from_kb():
         for combo_key, treatment in recs.items():
             try:
                 hemo, hema, grade = [s.strip() for s in combo_key.split("+")]
-                rules[(gender, hemo, hema, grade)] = treatment.replace("•", "•")  # decode bullet if needed
+                #rules[(gender, hemo, hema, grade)] = treatment.replace("•", "•")  # decode bullet if needed
+                cleaned = treatment.encode("utf-8", "ignore").decode("utf-8")
+                cleaned = re.sub(r'[\u05d2\u20ac\u00a2]+', "•", cleaned)  # fix bad bullet encoding
+                rules[(gender, hemo, hema, grade)] = cleaned
             except ValueError:
                 print(f"⚠️ Skipping invalid treatment key: {combo_key}")
 
