@@ -1,5 +1,5 @@
+import re
 from datetime import timedelta
-from typing import re
 
 import streamlit as st
 import json
