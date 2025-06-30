@@ -1,7 +1,7 @@
 from __future__ import annotations
 from pathlib import Path
 from datetime import datetime, date, time, timedelta
-from kb_editor import get_validity_for
+from kb_editor import get_validity_for, get_hemoglobin_state
 import pandas as pd
 import json
 
@@ -167,34 +167,35 @@ class CleanCDSSDatabase:
 
     def _calculate_hemoglobin_state(self, hgb_level: float, gender: str) -> str:
         """Calculate hemoglobin state"""
-        try:
-            hgb = float(hgb_level)
-            gender_lower = str(gender).lower()
-            
-            if 'female' in gender_lower:
-                if hgb < 8:
-                    return "Severe Anemia"
-                elif hgb < 10:
-                    return "Moderate Anemia"
-                elif hgb < 12:
-                    return "Mild Anemia"
-                elif hgb < 14:
-                    return "Normal Hemoglobin"
-                else:
-                    return "Polycytemia"  # High hemoglobin for both genders
-            else:  # male
-                if hgb < 9:
-                    return "Severe Anemia"
-                elif hgb < 11:
-                    return "Moderate Anemia"
-                elif hgb < 13:
-                    return "Mild Anemia"
-                elif hgb < 16:
-                    return "Normal Hemoglobin"
-                else:
-                    return "Polycytemia"  # High hemoglobin for both genders
-        except:
-            return None
+        return get_hemoglobin_state(hgb_level, gender)
+        # try:
+        #     hgb = float(hgb_level)
+        #     gender_lower = str(gender).lower()
+        #
+        #     if 'female' in gender_lower:
+        #         if hgb < 8:
+        #             return "Severe Anemia"
+        #         elif hgb < 10:
+        #             return "Moderate Anemia"
+        #         elif hgb < 12:
+        #             return "Mild Anemia"
+        #         elif hgb < 14:
+        #             return "Normal Hemoglobin"
+        #         else:
+        #             return "Polycytemia"  # High hemoglobin for both genders
+        #     else:  # male
+        #         if hgb < 9:
+        #             return "Severe Anemia"
+        #         elif hgb < 11:
+        #             return "Moderate Anemia"
+        #         elif hgb < 13:
+        #             return "Mild Anemia"
+        #         elif hgb < 16:
+        #             return "Normal Hemoglobin"
+        #         else:
+        #             return "Polycytemia"  # High hemoglobin for both genders
+        # except:
+        #     return None
 
     def _calculate_hematological_state(self, hgb_level: float, wbc_level: float, gender: str) -> str:
         """Calculate hematological state"""

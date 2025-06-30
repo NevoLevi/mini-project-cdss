@@ -46,6 +46,23 @@ def parse_duration(s: str) -> timedelta:
         return timedelta(days=3)
 
 
+def get_hemoglobin_state(hgb_level: float, gender: str):
+    with open(KB_PATH, "r", encoding="utf-8") as f:
+        kb = json.load(f)
+
+    gender = gender.lower()
+    table = kb["classification_tables"]["hemoglobin_state"]
+
+    try:
+        rules = table["rules"][gender]["ranges"]
+    except KeyError:
+        raise ValueError(f"No hemoglobin rules defined for gender: {gender}")
+
+    for rule in rules:
+        if rule["min"] <= hgb_level < rule["max"]:
+            return rule["state"]
+
+    return None  # No matching range found
 
 
 def load_kb():
