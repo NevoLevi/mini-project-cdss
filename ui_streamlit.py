@@ -536,19 +536,19 @@ with tab_dashboard:
 
 
 
-
-            # ═════════ DEBUG WINDOW ═════════
-            with st.expander("🛠 Debug log"):
-                if "debug_lines" not in st.session_state:
-                    st.session_state.debug_lines = []
-
-                for line in st.session_state.debug_lines:
-                    st.code(line, language="text")
-
-
-            #DEBUG ##
-            st.session_state.debug_lines.append(f"{query_dt}")
-            st.session_state.debug_lines.append(df_states.to_string(index=False))
+            #
+            # # ═════════ DEBUG WINDOW ═════════
+            # with st.expander("🛠 Debug log"):
+            #     if "debug_lines" not in st.session_state:
+            #         st.session_state.debug_lines = []
+            #
+            #     for line in st.session_state.debug_lines:
+            #         st.code(line, language="text")
+            #
+            #
+            # #DEBUG ##
+            # st.session_state.debug_lines.append(f"{query_dt}")
+            # st.session_state.debug_lines.append(df_states.to_string(index=False))
 
 
 
@@ -583,21 +583,9 @@ with tab_dashboard:
                     else:
                         st.text("🔬 WBC Count: No valid values")
 
-                    temp = patient_row.get('Fever', 'N/A')
-                    if temp and str(temp).lower() not in ['nan', 'none', '', 'n/a']:
-                        st.text(f"🌡️ Temperature: {temp} Celsius")
-                    else:
-                        st.text("🌡️ Temperature: No valid values")
-
-                    skin = patient_row.get('Skin-look', 'N/A')
-                    if skin and str(skin).lower() not in ['nan', 'none', '', 'n/a']:
-                        st.text(f"👁️ Skin Look: {skin}")
-                    else:
-                        st.text("👁️ Skin Look: No valid values")
-
                     # Show basic clinical observations from patient row data
-                    #st.text("🌡️ Temperature: Check patient history")
-                    #st.text("👁️ Skin Look: Check clinical observations")
+                    st.text("🌡️ Temperature: Check patient history")
+                    st.text("👁️ Skin Look: Check clinical observations")
                     st.text("🥶 Chills: Check clinical observations") 
                     st.text("⚠️ Allergic State: Check clinical observations")
             

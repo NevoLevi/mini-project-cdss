@@ -178,7 +178,24 @@ def get_systemic_toxicity(states: dict):
     return f"Grade {max(grades)}"
 
 
+def build_treatment_rules_from_kb():
+    """Convert JSON treatment rules to a structured dictionary with 4-tuple keys."""
+    with open(KB_PATH, "r", encoding="utf-8") as f:
+        kb = json.load(f)
 
+    raw = kb.get("treatments", {})
+    rules = {}
+
+    for gender_key, recs in raw.items():
+        gender = gender_key.capitalize()  # "male" → "Male"
+        for combo_key, treatment in recs.items():
+            try:
+                hemo, hema, grade = [s.strip() for s in combo_key.split("+")]
+                rules[(gender, hemo, hema, grade)] = treatment.replace("•", "•")  # decode bullet if needed
+            except ValueError:
+                print(f"⚠️ Skipping invalid treatment key: {combo_key}")
+
+    return rules
 
 
 def load_kb():

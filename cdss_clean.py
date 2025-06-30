@@ -1,7 +1,8 @@
 from __future__ import annotations
 from pathlib import Path
 from datetime import datetime, date, time, timedelta
-from kb_editor import get_validity_for, get_hemoglobin_state, get_hematological_state, get_systemic_toxicity
+from kb_editor import get_validity_for, get_hemoglobin_state, get_hematological_state, get_systemic_toxicity, \
+    build_treatment_rules_from_kb
 import pandas as pd
 import json
 
@@ -405,22 +406,24 @@ class CleanCDSSDatabase:
             systemic_toxicity_formatted = None
         
         # Define exact treatment rules from assignment
-        treatment_rules = {
-            # MALE RULES
-            ("Male", "Severe Anemia", "Pancytopenia", "GRADE I"): "• Measure BP once a week",
-            ("Male", "Moderate Anemia", "Anemia", "GRADE II"): "• Measure BP every 3 days\n• Give aspirin 5g twice a week",
-            ("Male", "Mild Anemia", "Suspected Leukemia", "GRADE III"): "• Measure BP every day\n• Give aspirin 15g every day\n• Diet consultation",
-            ("Male", "Normal Hemoglobin", "Leukemoid reaction", "GRADE IV"): "• Measure BP twice a day\n• Give aspirin 15g every day\n• Exercise consultation\n• Diet consultation",
-            ("Male", "Polyhemia", "Suspected Polycytemia Vera", "GRADE IV"): "• Measure BP every hour\n• Give 1 gr magnesium every hour\n• Exercise consultation\n• Call family",
-            
-            # FEMALE RULES
-            ("Female", "Severe Anemia", "Pancytopenia", "GRADE I"): "• Measure BP every 3 days",
-            ("Female", "Moderate Anemia", "Anemia", "GRADE II"): "• Measure BP every 3 days\n• Give Celectone 2g twice a day for two days drug treatment",
-            ("Female", "Mild Anemia", "Suspected Leukemia", "GRADE III"): "• Measure BP every day\n• Give 1 gr magnesium every 3 hours\n• Diet consultation",
-            ("Female", "Normal Hemoglobin", "Leukemoid reaction", "GRADE IV"): "• Measure BP twice a day\n• Give 1 gr magnesium every hour\n• Exercise consultation\n• Diet consultation",
-            ("Female", "Polyhemia", "Suspected Polycytemia Vera", "GRADE IV"): "• Measure BP every hour\n• Give 1 gr magnesium every hour\n• Exercise consultation\n• Call help"
-        }
-        
+        # treatment_rules = {
+        #     # MALE RULES
+        #     ("Male", "Severe Anemia", "Pancytopenia", "GRADE I"): "• Measure BP once a week",
+        #     ("Male", "Moderate Anemia", "Anemia", "GRADE II"): "• Measure BP every 3 days\n• Give aspirin 5g twice a week",
+        #     ("Male", "Mild Anemia", "Suspected Leukemia", "GRADE III"): "• Measure BP every day\n• Give aspirin 15g every day\n• Diet consultation",
+        #     ("Male", "Normal Hemoglobin", "Leukemoid reaction", "GRADE IV"): "• Measure BP twice a day\n• Give aspirin 15g every day\n• Exercise consultation\n• Diet consultation",
+        #     ("Male", "Polyhemia", "Suspected Polycytemia Vera", "GRADE IV"): "• Measure BP every hour\n• Give 1 gr magnesium every hour\n• Exercise consultation\n• Call family",
+        #
+        #     # FEMALE RULES
+        #     ("Female", "Severe Anemia", "Pancytopenia", "GRADE I"): "• Measure BP every 3 days",
+        #     ("Female", "Moderate Anemia", "Anemia", "GRADE II"): "• Measure BP every 3 days\n• Give Celectone 2g twice a day for two days drug treatment",
+        #     ("Female", "Mild Anemia", "Suspected Leukemia", "GRADE III"): "• Measure BP every day\n• Give 1 gr magnesium every 3 hours\n• Diet consultation",
+        #     ("Female", "Normal Hemoglobin", "Leukemoid reaction", "GRADE IV"): "• Measure BP twice a day\n• Give 1 gr magnesium every hour\n• Exercise consultation\n• Diet consultation",
+        #     ("Female", "Polyhemia", "Suspected Polycytemia Vera", "GRADE IV"): "• Measure BP every hour\n• Give 1 gr magnesium every hour\n• Exercise consultation\n• Call help"
+        # }
+
+        treatment_rules = build_treatment_rules_from_kb()
+
         # Create the key for treatment lookup
         treatment_key = (gender, hemoglobin_state, hematological_state, systemic_toxicity_formatted)
         
