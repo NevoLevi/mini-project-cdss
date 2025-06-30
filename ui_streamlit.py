@@ -537,18 +537,18 @@ with tab_dashboard:
 
 
 
-            # # ═════════ DEBUG WINDOW ═════════
-            # with st.expander("🛠 Debug log"):
-            #     if "debug_lines" not in st.session_state:
-            #         st.session_state.debug_lines = []
-            #
-            #     for line in st.session_state.debug_lines:
-            #         st.code(line, language="text")
-            #
-            #
-            # #DEBUG ##
-            # st.session_state.debug_lines.append(f"{query_dt}")
-            # st.session_state.debug_lines.append(df_states.to_string(index=False))
+            # ═════════ DEBUG WINDOW ═════════
+            with st.expander("🛠 Debug log"):
+                if "debug_lines" not in st.session_state:
+                    st.session_state.debug_lines = []
+
+                for line in st.session_state.debug_lines:
+                    st.code(line, language="text")
+
+
+            #DEBUG ##
+            st.session_state.debug_lines.append(f"{query_dt}")
+            st.session_state.debug_lines.append(df_states.to_string(index=False))
 
 
 
@@ -597,7 +597,7 @@ with tab_dashboard:
 
                     # Show basic clinical observations from patient row data
                     #st.text("🌡️ Temperature: Check patient history")
-                    st.text("👁️ Skin Look: Check clinical observations")
+                    #st.text("👁️ Skin Look: Check clinical observations")
                     st.text("🥶 Chills: Check clinical observations") 
                     st.text("⚠️ Allergic State: Check clinical observations")
             
