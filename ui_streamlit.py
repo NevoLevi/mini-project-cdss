@@ -584,10 +584,16 @@ with tab_dashboard:
                         st.text("🔬 WBC Count: No valid values")
 
                     temp = patient_row.get('Fever', 'N/A')
-                    if temp or str(temp).lower() not in ['nan', 'none', '', 'n/a']:
-                        st.text(f"🌡️ Temperature: {hgb_level} Celsius")
+                    if temp and str(temp).lower() not in ['nan', 'none', '', 'n/a']:
+                        st.text(f"🌡️ Temperature: {temp} Celsius")
                     else:
                         st.text("🌡️ Temperature: No valid values")
+
+                    skin = patient_row.get('Skin-look', 'N/A')
+                    if skin and str(skin).lower() not in ['nan', 'none', '', 'n/a']:
+                        st.text(f"👁️ Skin Look: {skin}")
+                    else:
+                        st.text("👁️ Skin Look: No valid values")
 
                     # Show basic clinical observations from patient row data
                     #st.text("🌡️ Temperature: Check patient history")
