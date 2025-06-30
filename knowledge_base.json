@@ -57,12 +57,12 @@
             {
               "min": 11,
               "max": 12,
-              "state": "Mild Anemia2"
+              "state": "Mild Anemia"
             },
             {
               "min": 12,
               "max": 16,
-              "state": "Normal Hemoglobin2"
+              "state": "Normal Hemoglobin"
             },
             {
               "min": 16,

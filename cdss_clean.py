@@ -1,7 +1,7 @@
 from __future__ import annotations
 from pathlib import Path
 from datetime import datetime, date, time, timedelta
-from kb_editor import get_validity_for, get_hemoglobin_state
+from kb_editor import get_validity_for, get_hemoglobin_state, get_hematological_state
 import pandas as pd
 import json
 
@@ -200,34 +200,36 @@ class CleanCDSSDatabase:
 
     def _calculate_hematological_state(self, hgb_level: float, wbc_level: float, gender: str) -> str:
         """Calculate hematological state"""
-        try:
-            hgb = float(hgb_level)
-            wbc = float(wbc_level)
-            gender_lower = str(gender).lower()
-            
-            if 'female' in gender_lower:
-                hgb_threshold = 12
-            else:
-                hgb_threshold = 13
-                
-            if hgb < hgb_threshold and wbc < 4000:
-                return "Pancytopenia"
-            elif hgb < hgb_threshold and 4000 <= wbc < 10000:
-                return "Anemia"
-            elif hgb < hgb_threshold and wbc >= 10000:
-                return "Suspected Leukemia"
-            elif hgb_threshold <= hgb < (14 if 'female' in gender_lower else 16) and wbc < 4000:
-                return "Leukopenia"
-            elif hgb_threshold <= hgb < (14 if 'female' in gender_lower else 16) and 4000 <= wbc < 10000:
-                return "Normal"
-            elif hgb_threshold <= hgb < (14 if 'female' in gender_lower else 16) and wbc >= 10000:
-                return "Leukemoid reaction"
-            elif hgb >= (14 if 'female' in gender_lower else 16) and 4000 <= wbc < 10000:
-                return "Polycytemia"
-            else:
-                return "Suspected Polycytemia Vera"
-        except:
-            return None
+        return get_hematological_state(hgb_level, wbc_level, gender)
+        # try:
+        #     hgb = float(hgb_level)
+        #     wbc = float(wbc_level)
+        #     gender_lower = str(gender).lower()
+        #
+        #     if 'female' in gender_lower:
+        #         hgb_threshold = 12
+        #     else:
+        #         hgb_threshold = 13
+        #
+        #     if hgb < hgb_threshold and wbc < 4000:
+        #         return "Pancytopenia"
+        #     elif hgb < hgb_threshold and 4000 <= wbc < 10000:
+        #         return "Anemia"
+        #     elif hgb < hgb_threshold and wbc >= 10000:
+        #         return "Suspected Leukemia"
+        #     elif hgb_threshold <= hgb < (14 if 'female' in gender_lower else 16) and wbc < 4000:
+        #         return "Leukopenia"
+        #     elif hgb_threshold <= hgb < (14 if 'female' in gender_lower else 16) and 4000 <= wbc < 10000:
+        #         return "Normal"
+        #     elif hgb_threshold <= hgb < (14 if 'female' in gender_lower else 16) and wbc >= 10000:
+        #         return "Leukemoid reaction"
+        #     elif hgb >= (14 if 'female' in gender_lower else 16) and 4000 <= wbc < 10000:
+        #         return "Polycytemia"
+        #     else:
+        #         return "Suspected Polycytemia Vera"
+        # except:
+        #     return None
+
 
     def _calculate_systemic_toxicity(self, states: dict) -> str:
         """Calculate systemic toxicity grade using Maximal OR approach"""

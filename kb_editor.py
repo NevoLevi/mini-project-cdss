@@ -65,6 +65,44 @@ def get_hemoglobin_state(hgb_level: float, gender: str):
     return None  # No matching range found
 
 
+def partition_index(value: float, bins: list[str]):
+    for i, rng in enumerate(bins):
+        if "+" in rng:
+            min_val = float(rng.replace("+", ""))
+            if value >= min_val:
+                return i
+        else:
+            min_val, max_val = map(float, rng.split("-"))
+            if min_val <= value < max_val:
+                return i
+    return None
+
+
+def get_hematological_state(hgb: float, wbc: float, gender: str, kb: dict = None):
+    if kb is None:
+        kb = load_kb()
+
+    gender = gender.lower()
+    table = kb["classification_tables"]["hematological_state"]
+
+    try:
+        rules = table["rules"][gender]
+        hgb_bins = rules["hgb_partitions"]
+        wbc_bins = rules["wbc_partitions"]
+        matrix = rules["matrix"]
+    except KeyError:
+        raise ValueError(f"No hematological rules defined for gender: {gender}")
+
+    # Determine hgb row
+    hgb_idx = partition_index(hgb, hgb_bins)
+    wbc_idx = partition_index(wbc, wbc_bins)
+
+    if hgb_idx is None or wbc_idx is None:
+        return None
+
+    return matrix[hgb_idx][wbc_idx]
+
+
 def load_kb():
     """Load knowledge base from JSON file."""
     try:
