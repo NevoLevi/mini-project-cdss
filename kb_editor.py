@@ -116,9 +116,22 @@ def get_systemic_toxicity(states: dict):
     if states.get("Therapy_Status") != "CCTG522":
         return None
 
-    def parse_grade(grade_str: str) -> int:
+    def parse_grade(grade_str) -> int:
+        """Convert 'GRADE I'...'GRADE IV' (Roman numerals) to integers."""
+        roman_map = {
+            "I": 1, "II": 2, "III": 3, "IV": 4, "V": 5,
+            "VI": 6, "VII": 7, "VIII": 8, "IX": 9, "X": 10
+        }
+
+        if not grade_str or not isinstance(grade_str, str):
+            return 0
+
         parts = grade_str.strip().upper().split()
-        return int(parts[1]) if len(parts) == 2 and parts[0] == "GRADE" else 0
+        if len(parts) == 2 and parts[0] == "GRADE":
+            return roman_map.get(parts[1], 0)
+
+        return 0
+
 
     rules = sys_tox["rules"]
 
