@@ -78,7 +78,7 @@ def partition_index(value: float, bins: list[str]):
     return None
 
 
-def get_hematological_state(hgb: float, wbc: float, gender: str, kb: dict = None):
+def get_hematological_state(hgb: float, wbc: float, gender: str):
     with open(KB_PATH, "r", encoding="utf-8") as f:
         kb = json.load(f)
 
@@ -100,7 +100,7 @@ def get_hematological_state(hgb: float, wbc: float, gender: str, kb: dict = None
     if hgb_idx is None or wbc_idx is None:
         return None
 
-    return matrix[hgb_idx][wbc_idx]
+    return matrix[wbc_idx][hgb_idx]
 
 
 
