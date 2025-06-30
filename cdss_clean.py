@@ -1,7 +1,7 @@
 from __future__ import annotations
 from pathlib import Path
 from datetime import datetime, date, time, timedelta
-from kb_editor import get_validity_for, get_hemoglobin_state, get_hematological_state
+from kb_editor import get_validity_for, get_hemoglobin_state, get_hematological_state, get_systemic_toxicity
 import pandas as pd
 import json
 
@@ -233,108 +233,110 @@ class CleanCDSSDatabase:
 
     def _calculate_systemic_toxicity(self, states: dict) -> str:
         """Calculate systemic toxicity grade using Maximal OR approach"""
-        # Only calculate if patient is on CCTG522 therapy
-        if states.get('Therapy_Status') != 'CCTG522':
-            return None
-        
-        # Get toxicity parameters
-        temp_val = states.get('Temperature')
-        chills_val = states.get('Chills')
-        skin_val = states.get('Skin_Appearance')
-        allergic_val = states.get('Allergic_Reaction')
-        
-        # Calculate individual grades for each parameter
-        fever_grade = self._get_fever_grade(temp_val)
-        chills_grade = self._get_chills_grade(chills_val)
-        skin_grade = self._get_skin_grade(skin_val)
-        allergic_grade = self._get_allergic_grade(allergic_val)
-        
-        # Maximal OR: Take the maximum grade from any parameter that has valid data
-        # If at least one parameter has a valid grade (>0), calculate toxicity
-        valid_grades = [grade for grade in [fever_grade, chills_grade, skin_grade, allergic_grade] if grade > 0]
-        
-        if not valid_grades:
-            return None  # No valid data for any parameter
-        
-        # Return maximum grade from available parameters
-        max_grade = max(valid_grades)
-        return f"Grade {max_grade}"
+        return get_systemic_toxicity(states)
 
-    def _get_fever_grade(self, temp_val) -> int:
-        if temp_val is None:
-            return 0
-        try:
-            temp = float(temp_val)
-            # Only assign fever grades for actual fever (>= 37.5°C)
-            # Normal temperature should not contribute to systemic toxicity
-            if temp < 37.5:
-                return 0  # No fever grade for normal temperature
-            elif temp < 38.5:
-                return 1
-            elif temp < 40.0:
-                return 2
-            else:
-                return 3
-        except:
-            return 0
+        # # Only calculate if patient is on CCTG522 therapy
+        # if states.get('Therapy_Status') != 'CCTG522':
+        #     return None
+        #
+        # # Get toxicity parameters
+        # temp_val = states.get('Temperature')
+        # chills_val = states.get('Chills')
+        # skin_val = states.get('Skin_Appearance')
+        # allergic_val = states.get('Allergic_Reaction')
+        #
+        # # Calculate individual grades for each parameter
+        # fever_grade = self._get_fever_grade(temp_val)
+        # chills_grade = self._get_chills_grade(chills_val)
+        # skin_grade = self._get_skin_grade(skin_val)
+        # allergic_grade = self._get_allergic_grade(allergic_val)
+        #
+        # # Maximal OR: Take the maximum grade from any parameter that has valid data
+        # # If at least one parameter has a valid grade (>0), calculate toxicity
+        # valid_grades = [grade for grade in [fever_grade, chills_grade, skin_grade, allergic_grade] if grade > 0]
+        #
+        # if not valid_grades:
+        #     return None  # No valid data for any parameter
+        #
+        # # Return maximum grade from available parameters
+        # max_grade = max(valid_grades)
+        # return f"Grade {max_grade}"
 
-    def _get_chills_grade(self, chills_val) -> int:
-        if chills_val is None:
-            return 0
-        chills_str = str(chills_val).lower()
-        
-        # Map chills values to grades according to the table
-        if 'none' in chills_str:
-            return 0  # No grade for no chills - should not contribute to toxicity
-        elif 'shaking' in chills_str:
-            return 2  # Grade II for Shaking
-        elif 'rigor' in chills_str:
-            return 3  # Grade III for Rigor (also Grade IV)
-        
-        # For any other chills value not in the table, only assign grade if it indicates a problem
-        # Don't default to Grade I for normal conditions
-        return 0  # Default to no grade for unclear chills values
-
-    def _get_skin_grade(self, skin_val) -> int:
-        if skin_val is None:
-            return 0
-        skin_str = str(skin_val).lower()
-        
-        # Map skin values to grades according to the table
-        if 'erythema' in skin_str:
-            return 1  # Grade I for Erythema
-        elif 'vesiculation' in skin_str:
-            return 2  # Grade II for Vesiculation
-        elif 'desquamation' in skin_str:
-            return 3  # Grade III for Desquamation
-        elif 'exfoliation' in skin_str:
-            return 4  # Grade IV for Exfoliation
-        elif 'normal' in skin_str:
-            return 0  # No grade for normal skin - should not contribute to toxicity
-        
-        # For any other skin value not in the table, only assign grade if it indicates a problem
-        # Don't default to Grade I for normal conditions
-        return 0  # Default to no grade for unclear skin values
-
-    def _get_allergic_grade(self, allergic_val) -> int:
-        if allergic_val is None or str(allergic_val).lower() == 'nan' or str(allergic_val).lower() == 'none':
-            return 0  # No grade if no allergic data
-        
-        allergic_str = str(allergic_val).lower()
-        
-        # Map allergic values to grades according to the table
-        if 'edema' in allergic_str:
-            return 1  # Grade I for Edema
-        elif 'severe-bronchospasm' in allergic_str or 'severe bronchospasm' in allergic_str:
-            return 3  # Grade III for Severe-Bronchospasm
-        elif 'bronchospasm' in allergic_str:
-            return 2  # Grade II for Bronchospasm (check after severe)
-        elif 'anaphylactic' in allergic_str:
-            return 4  # Grade IV for Anaphylactic-Shock
-        
-        # For any other allergic value not in the table, only assign grade if it clearly indicates a problem
-        # Don't default to Grade I for normal or unclear conditions
-        return 0  # Default to no grade for unclear allergic values
+    # def _get_fever_grade(self, temp_val) -> int:
+    #     if temp_val is None:
+    #         return 0
+    #     try:
+    #         temp = float(temp_val)
+    #         # Only assign fever grades for actual fever (>= 37.5°C)
+    #         # Normal temperature should not contribute to systemic toxicity
+    #         if temp < 37.5:
+    #             return 0  # No fever grade for normal temperature
+    #         elif temp < 38.5:
+    #             return 1
+    #         elif temp < 40.0:
+    #             return 2
+    #         else:
+    #             return 3
+    #     except:
+    #         return 0
+    #
+    # def _get_chills_grade(self, chills_val) -> int:
+    #     if chills_val is None:
+    #         return 0
+    #     chills_str = str(chills_val).lower()
+    #
+    #     # Map chills values to grades according to the table
+    #     if 'none' in chills_str:
+    #         return 0  # No grade for no chills - should not contribute to toxicity
+    #     elif 'shaking' in chills_str:
+    #         return 2  # Grade II for Shaking
+    #     elif 'rigor' in chills_str:
+    #         return 3  # Grade III for Rigor (also Grade IV)
+    #
+    #     # For any other chills value not in the table, only assign grade if it indicates a problem
+    #     # Don't default to Grade I for normal conditions
+    #     return 0  # Default to no grade for unclear chills values
+    #
+    # def _get_skin_grade(self, skin_val) -> int:
+    #     if skin_val is None:
+    #         return 0
+    #     skin_str = str(skin_val).lower()
+    #
+    #     # Map skin values to grades according to the table
+    #     if 'erythema' in skin_str:
+    #         return 1  # Grade I for Erythema
+    #     elif 'vesiculation' in skin_str:
+    #         return 2  # Grade II for Vesiculation
+    #     elif 'desquamation' in skin_str:
+    #         return 3  # Grade III for Desquamation
+    #     elif 'exfoliation' in skin_str:
+    #         return 4  # Grade IV for Exfoliation
+    #     elif 'normal' in skin_str:
+    #         return 0  # No grade for normal skin - should not contribute to toxicity
+    #
+    #     # For any other skin value not in the table, only assign grade if it indicates a problem
+    #     # Don't default to Grade I for normal conditions
+    #     return 0  # Default to no grade for unclear skin values
+    #
+    # def _get_allergic_grade(self, allergic_val) -> int:
+    #     if allergic_val is None or str(allergic_val).lower() == 'nan' or str(allergic_val).lower() == 'none':
+    #         return 0  # No grade if no allergic data
+    #
+    #     allergic_str = str(allergic_val).lower()
+    #
+    #     # Map allergic values to grades according to the table
+    #     if 'edema' in allergic_str:
+    #         return 1  # Grade I for Edema
+    #     elif 'severe-bronchospasm' in allergic_str or 'severe bronchospasm' in allergic_str:
+    #         return 3  # Grade III for Severe-Bronchospasm
+    #     elif 'bronchospasm' in allergic_str:
+    #         return 2  # Grade II for Bronchospasm (check after severe)
+    #     elif 'anaphylactic' in allergic_str:
+    #         return 4  # Grade IV for Anaphylactic-Shock
+    #
+    #     # For any other allergic value not in the table, only assign grade if it clearly indicates a problem
+    #     # Don't default to Grade I for normal or unclear conditions
+    #     return 0  # Default to no grade for unclear allergic values
 
     def get_treatment_recommendation(self, patient_id: str, query_time: datetime = None) -> str:
         """Get treatment recommendation for patient based on exact assignment rules"""

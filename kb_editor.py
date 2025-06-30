@@ -79,8 +79,8 @@ def partition_index(value: float, bins: list[str]):
 
 
 def get_hematological_state(hgb: float, wbc: float, gender: str, kb: dict = None):
-    if kb is None:
-        kb = load_kb()
+    with open(KB_PATH, "r", encoding="utf-8") as f:
+        kb = json.load(f)
 
     gender = gender.lower()
     table = kb["classification_tables"]["hematological_state"]
@@ -101,6 +101,71 @@ def get_hematological_state(hgb: float, wbc: float, gender: str, kb: dict = None
         return None
 
     return matrix[hgb_idx][wbc_idx]
+
+
+
+
+def get_systemic_toxicity(states: dict):
+    """Calculate systemic toxicity using 4:1_MAXIMAL_OR rule from the KB."""
+    with open(KB_PATH, "r", encoding="utf-8") as f:
+        kb = json.load(f)
+
+    sys_tox = kb["classification_tables"]["systemic_toxicity"]
+
+    # Only apply rule if the condition matches
+    if states.get("Therapy_Status") != "CCTG522":
+        return None
+
+    def parse_grade(grade_str: str) -> int:
+        parts = grade_str.strip().upper().split()
+        return int(parts[1]) if len(parts) == 2 and parts[0] == "GRADE" else 0
+
+    rules = sys_tox["rules"]
+
+    # Mapping: KB input → state key
+    field_aliases = {
+        "Fever": "Temperature",
+        "Chills": "Chills",
+        "Skin-look": "Skin_Appearance",
+        "Allergic-state": "Allergic_Reaction"
+    }
+
+    grades = []
+
+    for kb_input in sys_tox["inputs"]:
+        state_key = field_aliases.get(kb_input)
+        if not state_key:
+            continue
+
+        value = states.get(state_key)
+        if value is None:
+            continue
+
+        field_rules = rules.get(kb_input)
+        if not field_rules:
+            continue
+
+        for rule in field_rules:
+            if "range" in rule:
+                try:
+                    v = float(value)
+                    if rule["range"][0] <= v < rule["range"][1]:
+                        grades.append(parse_grade(rule["grade"]))
+                        break
+                except:
+                    continue
+            elif "value" in rule:
+                if str(value).strip().lower() == str(rule["value"]).strip().lower() or str(rule["value"]).strip().lower() in str(value).strip().lower() :
+                    grades.append(parse_grade(rule["grade"]))
+                    break
+
+    if not grades:
+        return None
+
+    return f"Grade {max(grades)}"
+
+
+
 
 
 def load_kb():
