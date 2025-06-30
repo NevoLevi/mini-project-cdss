@@ -191,7 +191,7 @@ def build_treatment_rules_from_kb():
         for combo_key, treatment in recs.items():
             try:
                 hemo, hema, grade = [s.strip() for s in combo_key.split("+")]
-                rules[(gender, hemo, hema, grade)] = treatment.replace("•", "•")  # decode bullet if needed
+                #rules[(gender, hemo, hema, grade)] = treatment.replace("•", "•")  # decode bullet if needed
             except ValueError:
                 print(f"⚠️ Skipping invalid treatment key: {combo_key}")
 
