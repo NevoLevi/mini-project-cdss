@@ -167,6 +167,7 @@ class CleanCDSSDatabase:
 
     def _calculate_hemoglobin_state(self, hgb_level: float, gender: str) -> str:
         """Calculate hemoglobin state"""
+        #ADDED
         return get_hemoglobin_state(hgb_level, gender)
         # try:
         #     hgb = float(hgb_level)
