@@ -534,35 +534,23 @@ with tab_dashboard:
             col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 
 
-            #'Temperature': states.get('Temperature'),  # ADDED
-            #'Chills': states.get('Chills'),  # ADDED
-            #'Skin_Appearance': states.get('Skin_Appearance'),  # ADDED
-            #'Allergic_Reaction': states.get('Allergic_Reaction'),  # ADDED
-            # })
-
-
-            # ═════════ DEBUG WINDOW ═════════
-            with st.expander("🛠 Debug log"):
-                if "debug_lines" not in st.session_state:
-                    st.session_state.debug_lines = []
-
-                for line in st.session_state.debug_lines:
-                    st.code(line, language="text")
-
-
-            #DEBUG ##
-            st.session_state.debug_lines.append(f"{patient_row.get('Temperature')}")
-            st.session_state.debug_lines.append(f"{patient_row.get('Chills')}")
-            st.session_state.debug_lines.append(f"{patient_row.get('Skin_Appearance')}")
-            st.session_state.debug_lines.append(f"{patient_row.get('Allergic_Reaction')}")
-
-            #st.session_state.debug_lines.append(patient_row.to_string(index=False))
-            st.session_state.debug_lines.append(f"{query_dt}")
-
-
-
-
-
+            # # ═════════ DEBUG WINDOW ═════════
+            # with st.expander("🛠 Debug log"):
+            #     if "debug_lines" not in st.session_state:
+            #         st.session_state.debug_lines = []
+            #
+            #     for line in st.session_state.debug_lines:
+            #         st.code(line, language="text")
+            #
+            #
+            # #DEBUG ##
+            # st.session_state.debug_lines.append(f"{patient_row.get('Temperature')}")
+            # st.session_state.debug_lines.append(f"{patient_row.get('Chills')}")
+            # st.session_state.debug_lines.append(f"{patient_row.get('Skin_Appearance')}")
+            # st.session_state.debug_lines.append(f"{patient_row.get('Allergic_Reaction')}")
+            #
+            # #st.session_state.debug_lines.append(patient_row.to_string(index=False))
+            # st.session_state.debug_lines.append(f"{query_dt}")
 
 
 
@@ -592,10 +580,38 @@ with tab_dashboard:
                     else:
                         st.text("🔬 WBC Count: No valid values")
 
+                    temp = patient_row.get('Temperature', 'N/A')
+                    if temp and str(temp).lower() not in ['nan', 'none', '', 'n/a', 'N/A']:
+                        st.text(f"🌡️ Temperature: {temp} C")
+                    else:
+                        st.text("🌡️ Temperature: No valid values")
+
+                    chills1 = patient_row.get('Chills', 'N/A')
+                    if chills1 and str(chills1).lower() not in ['nan', 'none', '', 'n/a', 'N/A']:
+                        st.text(f"🥶 Chills: {chills1}")
+                    else:
+                        st.text("🥶 Chills: No valid values")
+
+                    skinLook = patient_row.get('Skin_Appearance', 'N/A')
+                    if skinLook and str(skinLook).lower() not in ['nan', 'none', '', 'n/a', 'N/A']:
+                        st.text(f"👁️ Skin Look: {skinLook}")
+                    else:
+                        st.text("👁️ Skin Look: No valid values")
+
+
+                    allergic = patient_row.get('Allergic_Reaction', 'N/A')
+                    if allergic and str(allergic).lower() not in ['nan', 'none', '', 'n/a', 'N/A']:
+                        st.text(f"⚠️ Allergic State: {allergic}")
+                    else:
+                        st.text("⚠️ Allergic State: No valid values")
+
+                    # 'Allergic_Reaction': states.get('Allergic_Reaction'),  # ADDED
+                    # })
+
                     # Show basic clinical observations from patient row data
-                    st.text("🌡️ Temperature: Check patient history")
-                    st.text("👁️ Skin Look: Check clinical observations")
-                    st.text("🥶 Chills: Check clinical observations") 
+                    #st.text("🌡️ Temperature: Check patient history")
+                    #st.text("👁️ Skin Look: Check clinical observations")
+                    #st.text("🥶 Chills: Check clinical observations")
                     st.text("⚠️ Allergic State: Check clinical observations")
             
             with col3:
