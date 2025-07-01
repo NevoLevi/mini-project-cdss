@@ -612,7 +612,7 @@ with tab_dashboard:
                     #st.text("🌡️ Temperature: Check patient history")
                     #st.text("👁️ Skin Look: Check clinical observations")
                     #st.text("🥶 Chills: Check clinical observations")
-                    st.text("⚠️ Allergic State: Check clinical observations")
+                    #st.text("⚠️ Allergic State: Check clinical observations")
             
             with col3:
                 st.markdown("**🔬 Clinical Status**")
