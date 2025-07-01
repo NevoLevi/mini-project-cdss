@@ -521,8 +521,13 @@ class CleanCDSSDatabase:
                 'Hematological-state': states.get('Hematological_State'),
                 'Therapy': states.get('Therapy_Status'),
                 'Systemic-Toxicity': states.get('Systemic_Toxicity'),
-                'Recommendation': recommendation or 'No specific treatment'
+                'Recommendation': recommendation or 'No specific treatment',
+                'Temperature': states.get('Temperature'),  #ADDED
+                'Chills': states.get('Chills'),  #ADDED
+                'Skin_Appearance': states.get('Skin_Appearance'),  # ADDED
+                'Allergic_Reaction': states.get('Allergic_Reaction'),  # ADDED
             })
+
         return pd.DataFrame(rows)
 
     def history(self, patient: str, code: str, start: datetime, end: datetime, hh: time = None, query_time: datetime = None) -> pd.DataFrame:

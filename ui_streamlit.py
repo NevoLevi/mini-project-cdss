@@ -534,7 +534,11 @@ with tab_dashboard:
             col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 
 
-
+            #'Temperature': states.get('Temperature'),  # ADDED
+            #'Chills': states.get('Chills'),  # ADDED
+            #'Skin_Appearance': states.get('Skin_Appearance'),  # ADDED
+            #'Allergic_Reaction': states.get('Allergic_Reaction'),  # ADDED
+            # })
 
 
             # ═════════ DEBUG WINDOW ═════════
@@ -547,8 +551,13 @@ with tab_dashboard:
 
 
             #DEBUG ##
+            st.session_state.debug_lines.append(f"{patient_row.get('Temperature')}")
+            st.session_state.debug_lines.append(f"{patient_row.get('Chills')}")
+            st.session_state.debug_lines.append(f"{patient_row.get('Skin_Appearance')}")
+            st.session_state.debug_lines.append(f"{patient_row.get('Allergic_Reaction')}")
+
+            #st.session_state.debug_lines.append(patient_row.to_string(index=False))
             st.session_state.debug_lines.append(f"{query_dt}")
-            st.session_state.debug_lines.append(patient_row.to_string(index=False))
 
 
 
