@@ -262,7 +262,7 @@
     "39106-0": {
       "name": "Temperature",
       "before_good": "1 days",
-      "after_good": "2 days"
+      "after_good": "1 days"
     },
     "CHILLS-OBS": {
       "name": "Chills",
