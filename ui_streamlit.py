@@ -536,19 +536,19 @@ with tab_dashboard:
 
 
 
-            #
-            # # ═════════ DEBUG WINDOW ═════════
-            # with st.expander("🛠 Debug log"):
-            #     if "debug_lines" not in st.session_state:
-            #         st.session_state.debug_lines = []
-            #
-            #     for line in st.session_state.debug_lines:
-            #         st.code(line, language="text")
-            #
-            #
-            # #DEBUG ##
-            # st.session_state.debug_lines.append(f"{query_dt}")
-            # st.session_state.debug_lines.append(df_states.to_string(index=False))
+
+            # ═════════ DEBUG WINDOW ═════════
+            with st.expander("🛠 Debug log"):
+                if "debug_lines" not in st.session_state:
+                    st.session_state.debug_lines = []
+
+                for line in st.session_state.debug_lines:
+                    st.code(line, language="text")
+
+
+            #DEBUG ##
+            st.session_state.debug_lines.append(f"{query_dt}")
+            st.session_state.debug_lines.append(patient_row.to_string(index=False))
 
 
 
