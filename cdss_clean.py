@@ -574,6 +574,10 @@ class CleanCDSSDatabase:
         result = df[mask].sort_values("Valid_Start_Time").reset_index(drop=True)
         if not result.empty:
             result = result.assign(LOINC_NAME=result["LOINC_Description"])
+        # Drop Deleted and Deleted_Time columns from the result if present
+        for col in ["Deleted", "Deleted_Time"]:
+            if col in result.columns:
+                result = result.drop(columns=[col])
         return result
 
     def update(self, patient: str, code: str, valid_dt: datetime, new_val, now: datetime = None, transaction_time: datetime = None) -> pd.DataFrame:
