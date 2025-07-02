@@ -530,21 +530,53 @@ class CleanCDSSDatabase:
 
         return pd.DataFrame(rows)
 
+    def _ensure_deleted_columns(self):
+        """Ensure Deleted and Deleted_Time columns exist in lab_results_df"""
+        if 'Deleted' not in self.lab_results_df.columns:
+            self.lab_results_df['Deleted'] = False
+        if 'Deleted_Time' not in self.lab_results_df.columns:
+            self.lab_results_df['Deleted_Time'] = pd.NaT
+
+    def delete(self, patient: str, code: str, day: date, hh: time = None, now: datetime = None) -> pd.DataFrame:
+        """Soft delete lab values by marking them as deleted with a timestamp"""
+        self._ensure_deleted_columns()
+        if now is None:
+            now = datetime.now()
+        mask = (
+            (self.lab_results_df["Patient_ID"] == patient) &
+            (self.lab_results_df["LOINC_Code"] == code) &
+            (self.lab_results_df["Valid_Start_Time"].dt.date == day)
+        )
+        if hh:
+            mask &= (self.lab_results_df["Valid_Start_Time"].dt.time == hh)
+        idx = self.lab_results_df[mask].index
+        if len(idx) == 0:
+            return pd.DataFrame()
+        self.lab_results_df.loc[idx, "Deleted"] = True
+        self.lab_results_df.loc[idx, "Deleted_Time"] = now
+        # Save to Excel
+        with pd.ExcelWriter(self.path, mode="a", if_sheet_exists="overlay", engine="openpyxl") as writer:
+            self.lab_results_df.to_excel(writer, sheet_name="Lab_Results", index=False)
+        return self.lab_results_df.loc[idx].copy()
+
     def history(self, patient: str, code: str, start: datetime, end: datetime, hh: time = None, query_time: datetime = None) -> pd.DataFrame:
-        """Get history of lab values for a patient and LOINC code"""
-        df = self.lab_results_df
+        """Get history of lab values for a patient and LOINC code, supporting soft delete and time travel"""
+        df = self.lab_results_df.copy()
+        self._ensure_deleted_columns()
         if query_time:
             df = df[df["Transaction_Time"] <= query_time]
-        
+            # Exclude rows deleted at or before query_time
+            df = df[(df["Deleted"] == False) | (df["Deleted_Time"].isna()) | (df["Deleted_Time"] > query_time)]
+        else:
+            df = df[df["Deleted"] == False]
         mask = (df["Patient_ID"] == patient) & (df["LOINC_Code"] == code) & df["Valid_Start_Time"].between(start, end)
         if hh:
             mask &= df["Valid_Start_Time"].dt.time == hh
-        
         result = df[mask].sort_values("Valid_Start_Time").reset_index(drop=True)
         if not result.empty:
             result = result.assign(LOINC_NAME=result["LOINC_Description"])
         return result
-    
+
     def update(self, patient: str, code: str, valid_dt: datetime, new_val, now: datetime = None, transaction_time: datetime = None) -> pd.DataFrame:
         """Add a new lab value row to the database with the updated value and transaction time"""
         # Prepare the new row data
@@ -586,11 +618,6 @@ class CleanCDSSDatabase:
 
         # Return the new row as a DataFrame
         return pd.DataFrame([new_row])
-    
-    def delete(self, patient: str, code: str, day: date, hh: time = None) -> pd.DataFrame:
-        """Delete lab values (placeholder implementation)"""
-        # For now, just return empty DataFrame - full implementation would modify the database
-        return pd.DataFrame()
     
     def _merge_overlapping_intervals(self, intervals: list) -> list:
         """Merge overlapping or adjacent intervals"""
