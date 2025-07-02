@@ -560,9 +560,8 @@ class CleanCDSSDatabase:
         return self.lab_results_df.loc[idx].copy()
 
     def history(self, patient: str, code: str, start: datetime, end: datetime, hh: time = None, query_time: datetime = None) -> pd.DataFrame:
-        """Get history of lab values for a patient and LOINC code, supporting soft delete and time travel"""
+        self._ensure_deleted_columns()  # Ensure columns exist before using them
         df = self.lab_results_df.copy()
-        self._ensure_deleted_columns()
         if query_time:
             df = df[df["Transaction_Time"] <= query_time]
             # Exclude rows deleted at or before query_time
