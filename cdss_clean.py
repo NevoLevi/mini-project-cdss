@@ -546,9 +546,46 @@ class CleanCDSSDatabase:
         return result
     
     def update(self, patient: str, code: str, valid_dt: datetime, new_val, now: datetime = None, transaction_time: datetime = None) -> pd.DataFrame:
-        """Update a lab value (placeholder implementation)"""
-        # For now, just return empty DataFrame - full implementation would modify the database
-        return pd.DataFrame()
+        """Add a new lab value row to the database with the updated value and transaction time"""
+        # Prepare the new row data
+        if transaction_time is not None:
+            trans_time = transaction_time
+        else:
+            trans_time = now if now is not None else datetime.now()
+
+        # Find the LOINC_Description and Unit from any existing row for this patient/code
+        match = self.lab_results_df[
+            (self.lab_results_df["Patient_ID"] == patient) &
+            (self.lab_results_df["LOINC_Code"] == code)
+        ]
+        if not match.empty:
+            loinc_desc = match.iloc[0]["LOINC_Description"]
+            unit = match.iloc[0]["Unit"]
+        else:
+            loinc_desc = ""
+            unit = ""
+
+        new_row = {
+            "Patient_ID": patient,
+            "LOINC_Code": code,
+            "LOINC_Description": loinc_desc,
+            "Value": new_val,
+            "Unit": unit,
+            "Valid_Start_Time": valid_dt,
+            "Transaction_Time": trans_time
+        }
+        # Append the new row
+        self.lab_results_df = pd.concat([
+            self.lab_results_df,
+            pd.DataFrame([new_row])
+        ], ignore_index=True)
+
+        # Save the updated DataFrame back to Excel (only Lab_Results sheet)
+        with pd.ExcelWriter(self.path, mode="a", if_sheet_exists="overlay", engine="openpyxl") as writer:
+            self.lab_results_df.to_excel(writer, sheet_name="Lab_Results", index=False)
+
+        # Return the new row as a DataFrame
+        return pd.DataFrame([new_row])
     
     def delete(self, patient: str, code: str, day: date, hh: time = None) -> pd.DataFrame:
         """Delete lab values (placeholder implementation)"""
