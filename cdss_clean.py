@@ -578,7 +578,8 @@ class CleanCDSSDatabase:
         return result
 
     def update(self, patient: str, code: str, valid_dt: datetime, new_val, now: datetime = None, transaction_time: datetime = None) -> pd.DataFrame:
-        """Add a new lab value row to the database with the updated value and transaction time"""
+        """Add a new lab value row to the database with the updated value and transaction time, and set Valid_End_Time = valid_dt + 2 days"""
+        from datetime import timedelta
         # Prepare the new row data
         if transaction_time is not None:
             trans_time = transaction_time
@@ -597,6 +598,12 @@ class CleanCDSSDatabase:
             loinc_desc = ""
             unit = ""
 
+        valid_end = valid_dt + timedelta(days=2)
+
+        # Ensure Valid_End_Time column exists
+        if 'Valid_End_Time' not in self.lab_results_df.columns:
+            self.lab_results_df['Valid_End_Time'] = pd.NaT
+
         new_row = {
             "Patient_ID": patient,
             "LOINC_Code": code,
@@ -604,8 +611,14 @@ class CleanCDSSDatabase:
             "Value": new_val,
             "Unit": unit,
             "Valid_Start_Time": valid_dt,
+            "Valid_End_Time": valid_end,
             "Transaction_Time": trans_time
         }
+        # Add any missing columns (e.g., Deleted, Deleted_Time)
+        for col in ["Deleted", "Deleted_Time"]:
+            if col in self.lab_results_df.columns and col not in new_row:
+                new_row[col] = False if col == "Deleted" else pd.NaT
+
         # Append the new row
         self.lab_results_df = pd.concat([
             self.lab_results_df,
