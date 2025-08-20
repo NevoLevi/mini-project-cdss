@@ -103,7 +103,7 @@ def get_hematological_state(hgb: float, wbc: float, gender: str):
 
     return matrix[wbc_idx][hgb_idx]
 
-
+##
 
 
 def get_systemic_toxicity(states: dict):
