@@ -104,7 +104,7 @@ def get_hematological_state(hgb: float, wbc: float, gender: str):
     return matrix[wbc_idx][hgb_idx]
 
 
-
+##
 
 def get_systemic_toxicity(states: dict):
     """Calculate systemic toxicity using 4:1_MAXIMAL_OR rule from the KB."""
