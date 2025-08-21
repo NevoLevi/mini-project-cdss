@@ -231,7 +231,10 @@ def save_kb(kb_data):
 def export_ontology_files(kb_data):
     """Export knowledge base to PlantUML ontology files."""
     
-    # Generate schema file
+    # Get all classification tables to dynamically generate schema
+    classification_tables = kb_data.get("classification_tables", {})
+    
+    # Generate schema file dynamically
     schema_content = """@startuml ontology_schema
 hide circle
 skinparam classAttributeIconSize 0
@@ -248,33 +251,73 @@ abstract class Observation {
   symbolicValue: String [0..1]
 }
 
-class HemoglobinObservation
-class WBCObservation
-class FeverObservation
-class ChillsObservation
-class SkinLookObservation
-class AllergenicObservation as "AllergicStateObservation"
-class TherapyStatusObservation
-
-HemoglobinObservation -up-|> Observation
-WBCObservation -up-|> Observation
-FeverObservation -up-|> Observation
-ChillsObservation -up-|> Observation
-SkinLookObservation -up-|> Observation
-"AllergicStateObservation" -up-|> Observation
-TherapyStatusObservation -up-|> Observation
-
+' Dynamic observation classes based on KB tables
+"""
+    
+    # Add observation classes for each table
+    for table_name in classification_tables.keys():
+        if table_name == "hemoglobin_state":
+            schema_content += "class HemoglobinObservation\n"
+        elif table_name == "hematological_state":
+            schema_content += "class WBCObservation\n"
+        elif table_name == "systemic_toxicity":
+            schema_content += "class FeverObservation\n"
+            schema_content += "class ChillsObservation\n"
+            schema_content += "class SkinLookObservation\n"
+            schema_content += "class AllergenicObservation as \"AllergicStateObservation\"\n"
+            schema_content += "class TherapyStatusObservation\n"
+        else:
+            # For new tables like "sugar-level", create generic observation class
+            observation_name = table_name.replace("_", "").title() + "Observation"
+            schema_content += f"class {observation_name}\n"
+    
+    # Add inheritance relationships
+    schema_content += "\n' Observation inheritance\n"
+    for table_name in classification_tables.keys():
+        if table_name == "hemoglobin_state":
+            schema_content += "HemoglobinObservation -up-|> Observation\n"
+        elif table_name == "hematological_state":
+            schema_content += "WBCObservation -up-|> Observation\n"
+        elif table_name == "systemic_toxicity":
+            schema_content += "FeverObservation -up-|> Observation\n"
+            schema_content += "ChillsObservation -up-|> Observation\n"
+            schema_content += "SkinLookObservation -up-|> Observation\n"
+            schema_content += "\"AllergicStateObservation\" -up-|> Observation\n"
+            schema_content += "TherapyStatusObservation -up-|> Observation\n"
+        else:
+            # For new tables
+            observation_name = table_name.replace("_", "").title() + "Observation"
+            schema_content += f"{observation_name} -up-|> Observation\n"
+    
+    # Add state classes
+    schema_content += """
 class State
 class HemoglobinState
 class HematologicalState
 class SystemicToxicityGrade {
   aggregation: "MAX"  ' policy hint
 }
-
-HemoglobinState -up-|> State
-HematologicalState -up-|> State
-SystemicToxicityGrade -up-|> State
-
+"""
+    
+    # Add state classes for new tables
+    for table_name in classification_tables.keys():
+        if table_name not in ["hemoglobin_state", "hematological_state", "systemic_toxicity"]:
+            state_name = table_name.replace("_", "").title() + "State"
+            schema_content += f"class {state_name}\n"
+    
+    # Add state inheritance
+    schema_content += "\n' State inheritance\n"
+    schema_content += "HemoglobinState -up-|> State\n"
+    schema_content += "HematologicalState -up-|> State\n"
+    schema_content += "SystemicToxicityGrade -up-|> State\n"
+    
+    for table_name in classification_tables.keys():
+        if table_name not in ["hemoglobin_state", "hematological_state", "systemic_toxicity"]:
+            state_name = table_name.replace("_", "").title() + "State"
+            schema_content += f"{state_name} -up-|> State\n"
+    
+    # Add rule classes
+    schema_content += """
 class RangeSpec {
   label: String
   minVal: Decimal
@@ -311,119 +354,146 @@ SymptomToGradeRule "1" --> "1" Observation : symptomObservation
 SymptomToGradeRule "1" --> "1" SystemicToxicityGrade : yieldsGrade
 
 note right of RangeSpec
-  Used for Hb thresholds per gender.
+  Used for value thresholds per gender.
   Logic (informal):
     if hasGender in {male|female}
-    and Hb numericValue in [minVal, maxVal)
+    and numericValue in [minVal, maxVal)
     then assign mapsToState
 end note
 
 note right of MatrixCell
-  Represents one cell in the Hb×WBC matrix (per gender).
-  Given a patient's Hb and WBC partitions, the cell's
+  Represents one cell in decision matrices (per gender).
+  Given patient's parameter partitions, the cell's
   mapped State is assigned.
 end note
 
 note right of SymptomToGradeRule
   Gated by therapy (e.g., CCTG522).
-  For numeric Fever, use minVal/maxVal intervals.
-  For symbolic symptoms (Chills/Skin/Sensitivity),
-  use 'label' to hold the symbolic value.
+  For numeric values, use minVal/maxVal intervals.
+  For symbolic values, use 'label' to hold the symbolic value.
 end note
 @enduml"""
 
     # Generate instances file
     instances_content = "@startuml ontology_instances\nhide circle\nskinparam shadowing false\nskinparam objectFontStyle bold\n\n"
     
-    # Add hemoglobin ranges
-    hgb_table = kb_data.get("classification_tables", {}).get("hemoglobin_state", {})
-    for gender in ["female", "male"]:
-        if gender in hgb_table.get("rules", {}):
-            instances_content += f"' =====================\n' Hemoglobin ranges ({gender})\n' =====================\n"
-            rules = hgb_table["rules"][gender]["ranges"]
-            for i, rule in enumerate(rules):
-                if rule.get("state"):  # Skip empty states
-                    instances_content += f"object HB_{gender}_{i} <<RangeSpec>> {{\n"
-                    instances_content += f"  label = \"Hb {gender} range {i}\"\n"
-                    instances_content += f"  minVal = {rule['min']}\n"
-                    instances_content += f"  maxVal = {rule['max']}\n"
-                    instances_content += "}\n"
+    # Process all classification tables dynamically
+    for table_name, table_data in classification_tables.items():
+        table_type = table_data.get("type", "")
+        
+        if table_name == "hemoglobin_state":
+            # Handle hemoglobin ranges (1:1 type)
+            for gender in ["female", "male"]:
+                if gender in table_data.get("rules", {}):
+                    instances_content += f"' =====================\n' Hemoglobin ranges ({gender})\n' =====================\n"
+                    rules = table_data["rules"][gender]["ranges"]
+                    for i, rule in enumerate(rules):
+                        if rule.get("state"):  # Skip empty states
+                            instances_content += f"object HB_{gender}_{i} <<RangeSpec>> {{\n"
+                            instances_content += f"  label = \"Hb {gender} range {i}\"\n"
+                            instances_content += f"  minVal = {rule['min']}\n"
+                            instances_content += f"  maxVal = {rule['max']}\n"
+                            instances_content += "}\n"
+                            
+                            # Create state object if not already defined
+                            state_name = rule["state"].replace(" ", "_")
+                            instances_content += f"object {state_name} <<HemoglobinState>>\n"
+                            instances_content += f"HB_{gender}_{i} --> {state_name} : mapsToState\n\n"
+        
+        elif table_name == "hematological_state":
+            # Handle hematological matrix (2:1_AND type)
+            for gender in ["female", "male"]:
+                if gender in table_data.get("rules", {}):
+                    instances_content += f"' =====================\n' Hematological matrix ({gender})\n' =====================\n"
+                    rules = table_data["rules"][gender]
                     
-                    # Create state object if not already defined
-                    state_name = rule["state"].replace(" ", "_")
-                    instances_content += f"object {state_name} <<HemoglobinState>>\n"
-                    instances_content += f"HB_{gender}_{i} --> {state_name} : mapsToState\n\n"
-    
-    # Add hematological matrix
-    hema_table = kb_data.get("classification_tables", {}).get("hematological_state", {})
-    for gender in ["female", "male"]:
-        if gender in hema_table.get("rules", {}):
-            instances_content += f"' =====================\n' Hematological matrix ({gender})\n' =====================\n"
-            rules = hema_table["rules"][gender]
+                    # Add partitions
+                    for i, hgb_part in enumerate(rules.get("hgb_partitions", [])):
+                        instances_content += f"object HGBpart_{gender}_{i} <<Partition>> {{ label = \"Hb {gender} {hgb_part}\"; "
+                        if "+" in hgb_part:
+                            min_val = hgb_part.replace("+", "")
+                            instances_content += f"minVal={min_val} }}\n"
+                        else:
+                            min_val, max_val = hgb_part.split("-")
+                            instances_content += f"minVal={min_val}; maxVal={max_val} }}\n"
+                    
+                    for i, wbc_part in enumerate(rules.get("wbc_partitions", [])):
+                        instances_content += f"object WBCpart_{gender}_{i} <<Partition>> {{ label = \"WBC {gender} {wbc_part}\"; "
+                        if "+" in wbc_part:
+                            min_val = wbc_part.replace("+", "")
+                            instances_content += f"minVal={min_val} }}\n"
+                        else:
+                            min_val, max_val = wbc_part.split("-")
+                            instances_content += f"minVal={min_val}; maxVal={max_val} }}\n"
+                    
+                    # Add matrix cells
+                    matrix = rules.get("matrix", [])
+                    for i, row in enumerate(matrix):
+                        for j, state in enumerate(row):
+                            if state:  # Skip empty states
+                                state_name = state.replace(" ", "_")
+                                instances_content += f"object MATRIX_{gender}_{i}_{j} <<MatrixCell>> {{ label = \"Cell {gender} Hb{i}xWBC{j}\" }}\n"
+                                instances_content += f"MATRIX_{gender}_{i}_{j} --> HGBpart_{gender}_{i} : hgbPartition\n"
+                                instances_content += f"MATRIX_{gender}_{i}_{j} --> WBCpart_{gender}_{j} : wbcPartition\n"
+                                instances_content += f"MATRIX_{gender}_{i}_{j} --> {state_name} : mapsTo\n\n"
+        
+        elif table_name == "systemic_toxicity":
+            # Handle systemic toxicity rules (4:1_MAXIMAL_OR type)
+            instances_content += "' =====================\n' Systemic toxicity rules (Therapy=CCTG522)\n' =====================\n"
+            instances_content += "object CCTG522 <<TherapyStatusObservation>> { label=\"CCTG522\" }\n\n"
             
-            # Add partitions
-            for i, hgb_part in enumerate(rules.get("hgb_partitions", [])):
-                instances_content += f"object HGBpart_{gender}_{i} <<Partition>> {{ label = \"Hb {gender} {hgb_part}\"; "
-                if "+" in hgb_part:
-                    min_val = hgb_part.replace("+", "")
-                    instances_content += f"minVal={min_val} }}\n"
-                else:
-                    min_val, max_val = hgb_part.split("-")
-                    instances_content += f"minVal={min_val}; maxVal={max_val} }}\n"
+            # Add fever rules
+            fever_rules = table_data.get("rules", {}).get("Fever", [])
+            for i, rule in enumerate(fever_rules):
+                instances_content += f"object FeverRule_{i} <<SymptomToGradeRule>> {{ minVal={rule.get('min', 0)}; maxVal={rule.get('max', 999)} }}\n"
+                instances_content += f"FeverRule_{i} --> CCTG522 : appliesIfTherapy\n"
+                instances_content += f"FeverRule_{i} --> GRADE_{rule.get('grade', 'I')} : yieldsGrade\n\n"
             
-            for i, wbc_part in enumerate(rules.get("wbc_partitions", [])):
-                instances_content += f"object WBCpart_{gender}_{i} <<Partition>> {{ label = \"WBC {gender} {wbc_part}\"; "
-                if "+" in wbc_part:
-                    min_val = wbc_part.replace("+", "")
-                    instances_content += f"minVal={min_val} }}\n"
-                else:
-                    min_val, max_val = wbc_part.split("-")
-                    instances_content += f"minVal={min_val}; maxVal={max_val} }}\n"
+            # Add chills rules
+            chills_rules = table_data.get("rules", {}).get("Chills", [])
+            for i, rule in enumerate(chills_rules):
+                instances_content += f"object ChillsObservationRule_{i} <<SymptomToGradeRule>> {{ label=\"{rule.get('value', 'None')}\" }}\n"
+                instances_content += f"ChillsObservationRule_{i} --> CCTG522 : appliesIfTherapy\n"
+                instances_content += f"ChillsObservationRule_{i} --> GRADE_{rule.get('grade', 'I')} : yieldsGrade\n\n"
             
-            # Add matrix cells
-            matrix = rules.get("matrix", [])
-            for i, row in enumerate(matrix):
-                for j, state in enumerate(row):
-                    if state:  # Skip empty states
-                        state_name = state.replace(" ", "_")
-                        instances_content += f"object MATRIX_{gender}_{i}_{j} <<MatrixCell>> {{ label = \"Cell {gender} Hb{i}xWBC{j}\" }}\n"
-                        instances_content += f"MATRIX_{gender}_{i}_{j} --> HGBpart_{gender}_{i} : hgbPartition\n"
-                        instances_content += f"MATRIX_{gender}_{i}_{j} --> WBCpart_{gender}_{j} : wbcPartition\n"
-                        instances_content += f"MATRIX_{gender}_{i}_{j} --> {state_name} : mapsTo\n\n"
-    
-    # Add systemic toxicity rules
-    sys_tox_table = kb_data.get("classification_tables", {}).get("systemic_toxicity", {})
-    if sys_tox_table:
-        instances_content += "' =====================\n' Systemic toxicity rules (Therapy=CCTG522)\n' =====================\n"
-        instances_content += "object CCTG522 <<TherapyStatusObservation>> { label=\"CCTG522\" }\n\n"
+            # Add skin look rules
+            skin_rules = table_data.get("rules", {}).get("Skin-look", [])
+            for i, rule in enumerate(skin_rules):
+                instances_content += f"object SkinLookObservationRule_{i} <<SymptomToGradeRule>> {{ label=\"{rule.get('value', 'Erythema')}\" }}\n"
+                instances_content += f"SkinLookObservationRule_{i} --> CCTG522 : appliesIfTherapy\n"
+                instances_content += f"SkinLookObservationRule_{i} --> GRADE_{rule.get('grade', 'I')} : yieldsGrade\n\n"
+            
+            # Add allergic state rules
+            allergic_rules = table_data.get("rules", {}).get("Allergic-state", [])
+            for i, rule in enumerate(allergic_rules):
+                instances_content += f"object AllergicStateObservationRule_{i} <<SymptomToGradeRule>> {{ label=\"{rule.get('value', 'Edema')}\" }}\n"
+                instances_content += f"AllergicStateObservationRule_{i} --> CCTG522 : appliesIfTherapy\n"
+                instances_content += f"AllergicStateObservationRule_{i} --> GRADE_{rule.get('grade', 'I')} : yieldsGrade\n\n"
         
-        # Add fever rules
-        fever_rules = sys_tox_table.get("rules", {}).get("Fever", [])
-        for i, rule in enumerate(fever_rules):
-            instances_content += f"object FeverRule_{i} <<SymptomToGradeRule>> {{ minVal={rule.get('min', 0)}; maxVal={rule.get('max', 999)} }}\n"
-            instances_content += f"FeverRule_{i} --> CCTG522 : appliesIfTherapy\n"
-            instances_content += f"FeverRule_{i} --> GRADE_{rule.get('grade', 'I')} : yieldsGrade\n\n"
-        
-        # Add chills rules
-        chills_rules = sys_tox_table.get("rules", {}).get("Chills", [])
-        for i, rule in enumerate(chills_rules):
-            instances_content += f"object ChillsObservationRule_{i} <<SymptomToGradeRule>> {{ label=\"{rule.get('value', 'None')}\" }}\n"
-            instances_content += f"ChillsObservationRule_{i} --> CCTG522 : appliesIfTherapy\n"
-            instances_content += f"ChillsObservationRule_{i} --> GRADE_{rule.get('grade', 'I')} : yieldsGrade\n\n"
-        
-        # Add skin look rules
-        skin_rules = sys_tox_table.get("rules", {}).get("Skin-look", [])
-        for i, rule in enumerate(skin_rules):
-            instances_content += f"object SkinLookObservationRule_{i} <<SymptomToGradeRule>> {{ label=\"{rule.get('value', 'Erythema')}\" }}\n"
-            instances_content += f"SkinLookObservationRule_{i} --> CCTG522 : appliesIfTherapy\n"
-            instances_content += f"SkinLookObservationRule_{i} --> GRADE_{rule.get('grade', 'I')} : yieldsGrade\n\n"
-        
-        # Add allergic state rules
-        allergic_rules = sys_tox_table.get("rules", {}).get("Allergic-state", [])
-        for i, rule in enumerate(allergic_rules):
-            instances_content += f"object AllergicStateObservationRule_{i} <<SymptomToGradeRule>> {{ label=\"{rule.get('value', 'Edema')}\" }}\n"
-            instances_content += f"AllergicStateObservationRule_{i} --> CCTG522 : appliesIfTherapy\n"
-            instances_content += f"AllergicStateObservationRule_{i} --> GRADE_{rule.get('grade', 'I')} : yieldsGrade\n\n"
+        else:
+            # Handle new tables (like "sugar-level") - assume 1:1 type by default
+            table_display_name = table_name.replace("_", " ").title()
+            instances_content += f"' =====================\n' {table_display_name} ranges\n' =====================\n"
+            
+            for gender in ["female", "male"]:
+                if gender in table_data.get("rules", {}):
+                    instances_content += f"' {gender.title()} ranges:\n"
+                    rules = table_data["rules"][gender]["ranges"]
+                    for i, rule in enumerate(rules):
+                        if rule.get("state"):  # Skip empty states
+                            # Create range spec object
+                            range_prefix = table_name.upper().replace("_", "")
+                            instances_content += f"object {range_prefix}_{gender}_{i} <<RangeSpec>> {{\n"
+                            instances_content += f"  label = \"{table_display_name} {gender} range {i}\"\n"
+                            instances_content += f"  minVal = {rule['min']}\n"
+                            instances_content += f"  maxVal = {rule['max']}\n"
+                            instances_content += "}\n"
+                            
+                            # Create state object
+                            state_name = rule["state"].replace(" ", "_")
+                            state_class = table_name.replace("_", "").title() + "State"
+                            instances_content += f"object {state_name} <<{state_class}>>\n"
+                            instances_content += f"{range_prefix}_{gender}_{i} --> {state_name} : mapsToState\n\n"
     
     instances_content += "@enduml"
     
@@ -1130,58 +1200,79 @@ def render_ontology_viewer(kb_data):
         # Instances breakdown
         st.markdown("**🔍 Instance Components:**")
         
-        # Extract and display hemoglobin ranges
-        hgb_table = kb_data.get("classification_tables", {}).get("hemoglobin_state", {})
-        if hgb_table:
-            st.markdown("**🩸 Hemoglobin Ranges:**")
-            for gender in ["female", "male"]:
-                if gender in hgb_table.get("rules", {}):
-                    st.markdown(f"**{gender.title()}:**")
-                    rules = hgb_table["rules"][gender]["ranges"]
-                    for i, rule in enumerate(rules):
-                        if rule.get("state"):
-                            st.markdown(f"  - Range {i+1}: {rule['min']} - {rule['max']} → {rule['state']}")
+        # Extract and display all classification tables
+        classification_tables = kb_data.get("classification_tables", {})
         
-        # Extract and display hematological matrix
-        hema_table = kb_data.get("classification_tables", {}).get("hematological_state", {})
-        if hema_table:
-            st.markdown("**🩺 Hematological Matrix:**")
-            for gender in ["female", "male"]:
-                if gender in hema_table.get("rules", {}):
-                    st.markdown(f"**{gender.title()}:**")
-                    rules = hema_table["rules"][gender]
-                    hgb_parts = rules.get("hgb_partitions", [])
-                    wbc_parts = rules.get("wbc_partitions", [])
-                    matrix = rules.get("matrix", [])
-                    
-                    if matrix:
-                        # Create a nice table display
-                        matrix_data = []
-                        for i, row in enumerate(matrix):
-                            for j, cell in enumerate(row):
-                                if cell:
-                                    matrix_data.append({
-                                        "Hb Partition": hgb_parts[i] if i < len(hgb_parts) else "N/A",
-                                        "WBC Partition": wbc_parts[j] if j < len(wbc_parts) else "N/A",
-                                        "State": cell
-                                    })
-                        
-                        if matrix_data:
-                            st.dataframe(matrix_data, use_container_width=True)
-        
-        # Extract and display systemic toxicity rules
-        sys_tox_table = kb_data.get("classification_tables", {}).get("systemic_toxicity", {})
-        if sys_tox_table:
-            st.markdown("**🌡️ Systemic Toxicity Rules (CCTG522):**")
-            rules = sys_tox_table.get("rules", {})
+        for table_name, table_data in classification_tables.items():
+            table_type = table_data.get("type", "")
+            table_display_name = table_name.replace("_", " ").title()
             
-            for symptom, symptom_rules in rules.items():
-                st.markdown(f"**{symptom}:**")
-                for i, rule in enumerate(symptom_rules):
-                    if "range" in rule:
-                        st.markdown(f"  - Range {i+1}: {rule['range'][0]} - {rule['range'][1]} → {rule.get('grade', 'N/A')}")
-                    elif "value" in rule:
-                        st.markdown(f"  - Value {i+1}: {rule['value']} → {rule.get('grade', 'N/A')}")
+            if table_name == "hemoglobin_state":
+                st.markdown("**🩸 Hemoglobin Ranges:**")
+                for gender in ["female", "male"]:
+                    if gender in table_data.get("rules", {}):
+                        st.markdown(f"**{gender.title()}:**")
+                        rules = table_data["rules"][gender]["ranges"]
+                        for i, rule in enumerate(rules):
+                            if rule.get("state"):
+                                st.markdown(f"  - Range {i+1}: {rule['min']} - {rule['max']} → {rule['state']}")
+            
+            elif table_name == "hematological_state":
+                st.markdown("**🩺 Hematological Matrix:**")
+                for gender in ["female", "male"]:
+                    if gender in table_data.get("rules", {}):
+                        st.markdown(f"**{gender.title()}:**")
+                        rules = table_data["rules"][gender]
+                        hgb_parts = rules.get("hgb_partitions", [])
+                        wbc_parts = rules.get("wbc_partitions", [])
+                        matrix = rules.get("matrix", [])
+                        
+                        if matrix:
+                            # Create a nice table display
+                            matrix_data = []
+                            for i, row in enumerate(matrix):
+                                for j, cell in enumerate(row):
+                                    if cell:
+                                        matrix_data.append({
+                                            "Hb Partition": hgb_parts[i] if i < len(hgb_parts) else "N/A",
+                                            "WBC Partition": wbc_parts[j] if j < len(wbc_parts) else "N/A",
+                                            "State": cell
+                                        })
+                            
+                            if matrix_data:
+                                st.dataframe(matrix_data, use_container_width=True)
+            
+            elif table_name == "systemic_toxicity":
+                st.markdown("**🌡️ Systemic Toxicity Rules (CCTG522):**")
+                rules = table_data.get("rules", {})
+                
+                for symptom, symptom_rules in rules.items():
+                    st.markdown(f"**{symptom}:**")
+                    for i, rule in enumerate(symptom_rules):
+                        if "range" in rule:
+                            st.markdown(f"  - Range {i+1}: {rule['range'][0]} - {rule['range'][1]} → {rule.get('grade', 'N/A')}")
+                        elif "value" in rule:
+                            st.markdown(f"  - Value {i+1}: {rule['value']} → {rule.get('grade', 'N/A')}")
+            
+            else:
+                # Handle new tables (like "sugar-level")
+                st.markdown(f"**📊 {table_display_name} ({table_type}):**")
+                for gender in ["female", "male"]:
+                    if gender in table_data.get("rules", {}):
+                        st.markdown(f"**{gender.title()}:**")
+                        if table_type == "1:1":
+                            rules = table_data["rules"][gender]["ranges"]
+                            for i, rule in enumerate(rules):
+                                if rule.get("state"):
+                                    st.markdown(f"  - Range {i+1}: {rule['min']} - {rule['max']} → {rule['state']}")
+                        elif table_type == "2:1_AND":
+                            rules = table_data["rules"][gender]
+                            # Handle matrix tables
+                            st.markdown("  *Matrix-based classification*")
+                        elif table_type == "4:1_MAXIMAL_OR":
+                            rules = table_data["rules"][gender]
+                            # Handle OR-based tables
+                            st.markdown("  *OR-based classification*")
         
         # Download button
         st.download_button(
