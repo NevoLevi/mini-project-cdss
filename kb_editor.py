@@ -1745,7 +1745,7 @@ def render_inference_engine(kb_data):
                 patient_id = st.text_input("Patient ID", value="P001", key="form_patient_id")
                 gender = st.selectbox("Gender", ["male", "female"], key="form_gender")
                 hemoglobin = st.number_input("Hemoglobin (g/dL)", min_value=0.0, max_value=30.0, value=12.0, step=0.1, key="form_hemoglobin")
-                wbc = st.number_input("WBC (K/μL)", min_value=0.1, max_value=100.0, value=5.0, step=0.1, key="form_wbc")
+                wbc = st.number_input("WBC (K/μL)", min_value=0.1, max_value=20000.0, value=500.0, step=0.1, key="form_wbc")
                 fever = st.number_input("Fever (°C)", min_value=35.0, max_value=45.0, value=37.0, step=0.1, key="form_fever")
             
             with col2:
