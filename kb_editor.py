@@ -1197,27 +1197,25 @@ def render_ontology_viewer(kb_data):
         state_types = unique_state_types
         
         with col1:
-            st.markdown(f"""
-            **Core Classes:**
-            - `Patient` - Patient information
-            - `Observation` - Abstract base for all observations
-            - `State` - Abstract base for all states
-            
-            **Observation Types:**
-            {chr(10).join([f"- {obs_type}" for obs_type in observation_types])}
-            """)
+            st.markdown("**Core Classes:**")
+            st.markdown("- `Patient` - Patient information")
+            st.markdown("- `Observation` - Abstract base for all observations")
+            st.markdown("- `State` - Abstract base for all states")
+            st.markdown("")
+            st.markdown("**Observation Types:**")
+            for obs_type in observation_types:
+                st.markdown(f"- {obs_type}")
         
         with col2:
-            st.markdown(f"""
-            **State Types:**
-            {chr(10).join([f"- {state_type}" for state_type in state_types])}
-            
-            **Rule Classes:**
-            - `RangeSpec` - Value ranges with thresholds
-            - `Partition` - Value partitions
-            - `MatrixCell` - Decision matrix cells
-            - `SymptomToGradeRule` - Symptom to grade mapping
-            """)
+            st.markdown("**State Types:**")
+            for state_type in state_types:
+                st.markdown(f"- {state_type}")
+            st.markdown("")
+            st.markdown("**Rule Classes:**")
+            st.markdown("- `RangeSpec` - Value ranges with thresholds")
+            st.markdown("- `Partition` - Value partitions")
+            st.markdown("- `MatrixCell` - Decision matrix cells")
+            st.markdown("- `SymptomToGradeRule` - Symptom to grade mapping")
         
         # Download button
         st.download_button(
