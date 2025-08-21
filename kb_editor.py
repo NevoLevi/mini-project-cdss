@@ -680,9 +680,9 @@ end note
                         for j, state in enumerate(row):  # j = HGB partition index
                             if state:  # Skip empty states
                                 state_name = state.replace(" ", "_")
-                                instances_content += f"object MATRIX_{gender}_{i}_{j} <<MatrixCell>> {{ label = \"Cell {gender} WBC{i}xHb{j}\" }}\n"
-                                instances_content += f"MATRIX_{gender}_{i}_{j} --> WBCpart_{gender}_{i} : wbcPartition\n"
+                                instances_content += f"object MATRIX_{gender}_{i}_{j} <<MatrixCell>> {{ label = \"Cell {gender} Hb{j}xWBC{i}\" }}\n"
                                 instances_content += f"MATRIX_{gender}_{i}_{j} --> HGBpart_{gender}_{j} : hgbPartition\n"
+                                instances_content += f"MATRIX_{gender}_{i}_{j} --> WBCpart_{gender}_{i} : wbcPartition\n"
                                 instances_content += f"MATRIX_{gender}_{i}_{j} --> {state_name} : mapsTo\n\n"
         
         elif table_name == "systemic_toxicity":
@@ -1519,8 +1519,8 @@ def render_ontology_viewer(kb_data):
                                      for j, cell in enumerate(row):  # j = HGB partition index
                                          if cell:
                                              matrix_data.append({
-                                                 "WBC Partition": wbc_parts[j] if i < len(wbc_parts) else "N/A",
-                                                 "Hb Partition": hgb_parts[i] if j < len(hgb_parts) else "N/A",
+                                                 "Hb Partition": hgb_parts[j] if j < len(hgb_parts) else "N/A",
+                                                 "WBC Partition": wbc_parts[i] if i < len(wbc_parts) else "N/A",
                                                  "State": cell
                                              })
                                  
