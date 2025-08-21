@@ -1,0 +1,278 @@
+@startuml ontology_instances
+hide circle
+skinparam shadowing false
+skinparam objectFontStyle bold
+
+' =====================
+' Hemoglobin ranges (female)
+' =====================
+object HB_female_0 <<RangeSpec>> {
+  label = "Hb female range 0"
+  minVal = 0.0
+  maxVal = 8.0
+}
+object HB_female_1 <<RangeSpec>> {
+  label = "Hb female range 1"
+  minVal = 8.0
+  maxVal = 10.0
+}
+object HB_female_2 <<RangeSpec>> {
+  label = "Hb female range 2"
+  minVal = 10.0
+  maxVal = 12.0
+}
+object HB_female_3 <<RangeSpec>> {
+  label = "Hb female range 3"
+  minVal = 12.0
+  maxVal = 14.0
+}
+object HB_female_4 <<RangeSpec>> {
+  label = "Hb female range 4"
+  minVal = 14.0
+  maxVal = 999.0
+}
+
+object Severe_Anemia <<HemoglobinState>>
+object Moderate_Anemia <<HemoglobinState>>
+object Mild_Anemia <<HemoglobinState>>
+object Normal_Hemoglobin <<HemoglobinState>>
+object Polycytemia <<HemoglobinState>>
+object Polyhemia <<HemoglobinState>>
+
+HB_female_0 --> Severe_Anemia : mapsToState
+HB_female_1 --> Moderate_Anemia : mapsToState
+HB_female_2 --> Mild_Anemia : mapsToState
+HB_female_3 --> Normal_Hemoglobin : mapsToState
+HB_female_4 --> Polycytemia : mapsToState
+
+' =====================
+' Hemoglobin ranges (male)
+' =====================
+object HB_male_0 <<RangeSpec>> {
+  label = "Hb male range 0"
+  minVal = 0
+  maxVal = 9
+}
+object HB_male_1 <<RangeSpec>> {
+  label = "Hb male range 1"
+  minVal = 9
+  maxVal = 11
+}
+object HB_male_2 <<RangeSpec>> {
+  label = "Hb male range 2"
+  minVal = 11
+  maxVal = 13
+}
+object HB_male_3 <<RangeSpec>> {
+  label = "Hb male range 3"
+  minVal = 13
+  maxVal = 16
+}
+object HB_male_4 <<RangeSpec>> {
+  label = "Hb male range 4"
+  minVal = 16
+  maxVal = 999
+}
+
+HB_male_0 --> Severe_Anemia : mapsToState
+HB_male_1 --> Moderate_Anemia : mapsToState
+HB_male_2 --> Mild_Anemia : mapsToState
+HB_male_3 --> Normal_Hemoglobin : mapsToState
+HB_male_4 --> Polyhemia : mapsToState
+
+' =====================
+' Hematological matrix (female)
+' =====================
+object HGBpart_female_0 <<Partition>> { label = "Hb female 0-12"; minVal=0; maxVal=12 }
+object HGBpart_female_1 <<Partition>> { label = "Hb female 12-14"; minVal=12; maxVal=14 }
+object HGBpart_female_2 <<Partition>> { label = "Hb female 14+"; minVal=14 }
+
+object WBCpart_female_0 <<Partition>> { label = "WBC female 0-4000"; minVal=0; maxVal=4000 }
+object WBCpart_female_1 <<Partition>> { label = "WBC female 4000-10000"; minVal=4000; maxVal=10000 }
+object WBCpart_female_2 <<Partition>> { label = "WBC female 10000+"; minVal=10000 }
+
+object Pancytopenia <<HematologicalState>>
+object Leukopenia <<HematologicalState>>
+object Suspected_Polycytemia_Vera <<HematologicalState>>
+object Anemia <<HematologicalState>>
+object Normal <<HematologicalState>>
+object Suspected_Leukemia <<HematologicalState>>
+object Leukemoid_reaction <<HematologicalState>>
+object Polyhemia <<HematologicalState>>
+
+
+' Row 0
+object MATRIX_female_0_0 <<MatrixCell>> { label = "Cell female Hb0xWBC0" }
+MATRIX_female_0_0 --> HGBpart_female_0 : hgbPartition
+MATRIX_female_0_0 --> WBCpart_female_0 : wbcPartition
+MATRIX_female_0_0 --> Pancytopenia : mapsTo
+
+object MATRIX_female_0_1 <<MatrixCell>> { label = "Cell female Hb0xWBC1" }
+MATRIX_female_0_1 --> HGBpart_female_0 : hgbPartition
+MATRIX_female_0_1 --> WBCpart_female_1 : wbcPartition
+MATRIX_female_0_1 --> Anemia : mapsTo
+
+object MATRIX_female_0_2 <<MatrixCell>> { label = "Cell female Hb0xWBC2" }
+MATRIX_female_0_2 --> HGBpart_female_0 : hgbPartition
+MATRIX_female_0_2 --> WBCpart_female_2 : wbcPartition
+MATRIX_female_0_2 --> Suspected_Leukemia : mapsTo
+
+' Row 1
+object MATRIX_female_1_0 <<MatrixCell>> { label = "Cell female Hb1xWBC0" }
+MATRIX_female_1_0 --> HGBpart_female_1 : hgbPartition
+MATRIX_female_1_0 --> WBCpart_female_0 : wbcPartition
+MATRIX_female_1_0 --> Leukopenia : mapsTo
+
+object MATRIX_female_1_1 <<MatrixCell>> { label = "Cell female Hb1xWBC1" }
+MATRIX_female_1_1 --> HGBpart_female_1 : hgbPartition
+MATRIX_female_1_1 --> WBCpart_female_1 : wbcPartition
+MATRIX_female_1_1 --> Normal : mapsTo
+
+object MATRIX_female_1_2 <<MatrixCell>> { label = "Cell female Hb1xWBC2" }
+MATRIX_female_1_2 --> HGBpart_female_1 : hgbPartition
+MATRIX_female_1_2 --> WBCpart_female_2 : wbcPartition
+MATRIX_female_1_2 --> Leukemoid_reaction : mapsTo
+
+' Row 2
+object MATRIX_female_2_0 <<MatrixCell>> { label = "Cell female Hb2xWBC0" }
+MATRIX_female_2_0 --> HGBpart_female_2 : hgbPartition
+MATRIX_female_2_0 --> WBCpart_female_0 : wbcPartition
+MATRIX_female_2_0 --> Suspected_Polycytemia_Vera : mapsTo
+
+object MATRIX_female_2_1 <<MatrixCell>> { label = "Cell female Hb2xWBC1" }
+MATRIX_female_2_1 --> HGBpart_female_2 : hgbPartition
+MATRIX_female_2_1 --> WBCpart_female_1 : wbcPartition
+MATRIX_female_2_1 --> Leukemoid_reaction : mapsTo
+
+object MATRIX_female_2_2 <<MatrixCell>> { label = "Cell female Hb2xWBC2" }
+MATRIX_female_2_2 --> HGBpart_female_2 : hgbPartition
+MATRIX_female_2_2 --> WBCpart_female_2 : wbcPartition
+MATRIX_female_2_2 --> Polyhemia : mapsTo
+
+' =====================
+' Hematological matrix (male)
+' =====================
+object HGBpart_male_0 <<Partition>> { label = "Hb male 0-13"; minVal=0; maxVal=13 }
+object HGBpart_male_1 <<Partition>> { label = "Hb male 13-16"; minVal=13; maxVal=16 }
+object HGBpart_male_2 <<Partition>> { label = "Hb male 16+"; minVal=16 }
+
+object WBCpart_male_0 <<Partition>> { label = "WBC male 0-4000"; minVal=0; maxVal=4000 }
+object WBCpart_male_1 <<Partition>> { label = "WBC male 4000-10000"; minVal=4000; maxVal=10000 }
+object WBCpart_male_2 <<Partition>> { label = "WBC male 10000+"; minVal=10000 }
+
+' Row 0
+object MATRIX_male_0_0 <<MatrixCell>> { label = "Cell male Hb0xWBC0" }
+MATRIX_male_0_0 --> HGBpart_male_0 : hgbPartition
+MATRIX_male_0_0 --> WBCpart_male_0 : wbcPartition
+MATRIX_male_0_0 --> Pancytopenia : mapsTo
+
+object MATRIX_male_0_1 <<MatrixCell>> { label = "Cell male Hb0xWBC1" }
+MATRIX_male_0_1 --> HGBpart_male_0 : hgbPartition
+MATRIX_male_0_1 --> WBCpart_male_1 : wbcPartition
+MATRIX_male_0_1 --> Anemia : mapsTo
+
+object MATRIX_male_0_2 <<MatrixCell>> { label = "Cell male Hb0xWBC2" }
+MATRIX_male_0_2 --> HGBpart_male_0 : hgbPartition
+MATRIX_male_0_2 --> WBCpart_male_2 : wbcPartition
+MATRIX_male_0_2 --> Suspected_Leukemia : mapsTo
+
+' Row 1
+object MATRIX_male_1_0 <<MatrixCell>> { label = "Cell male Hb1xWBC0" }
+MATRIX_male_1_0 --> HGBpart_male_1 : hgbPartition
+MATRIX_male_1_0 --> WBCpart_male_0 : wbcPartition
+MATRIX_male_1_0 --> Leukopenia : mapsTo
+
+object MATRIX_male_1_1 <<MatrixCell>> { label = "Cell male Hb1xWBC1" }
+MATRIX_male_1_1 --> HGBpart_male_1 : hgbPartition
+MATRIX_male_1_1 --> WBCpart_male_1 : wbcPartition
+MATRIX_male_1_1 --> Normal : mapsTo
+
+object MATRIX_male_1_2 <<MatrixCell>> { label = "Cell male Hb1xWBC2" }
+MATRIX_male_1_2 --> HGBpart_male_1 : hgbPartition
+MATRIX_male_1_2 --> WBCpart_male_2 : wbcPartition
+MATRIX_male_1_2 --> Leukemoid_reaction : mapsTo
+
+' Row 2
+object MATRIX_male_2_0 <<MatrixCell>> { label = "Cell male Hb2xWBC0" }
+MATRIX_male_2_0 --> HGBpart_male_2 : hgbPartition
+MATRIX_male_2_0 --> WBCpart_male_0 : wbcPartition
+MATRIX_male_2_0 --> Suspected_Polycytemia_Vera : mapsTo
+
+object MATRIX_male_2_1 <<MatrixCell>> { label = "Cell male Hb2xWBC1" }
+MATRIX_male_2_1 --> HGBpart_male_2 : hgbPartition
+MATRIX_male_2_1 --> WBCpart_male_1 : wbcPartition
+MATRIX_male_2_1 --> Polyhemia : mapsTo
+
+object MATRIX_male_2_2 <<MatrixCell>> { label = "Cell male Hb2xWBC2" }
+MATRIX_male_2_2 --> HGBpart_male_2 : hgbPartition
+MATRIX_male_2_2 --> WBCpart_male_2 : wbcPartition
+MATRIX_male_2_2 --> Suspected_Polycytemia_Vera : mapsTo
+
+' =====================
+' Systemic toxicity rules (Therapy=CCTG522)
+' =====================
+object CCTG522 <<TherapyStatusObservation>> { label="CCTG522" }
+
+' Fever ranges
+object FeverRule_0 <<SymptomToGradeRule>> { minVal=0; maxVal=38.5 }
+object FeverRule_1 <<SymptomToGradeRule>> { minVal=38.5; maxVal=40.0 }
+object FeverRule_2 <<SymptomToGradeRule>> { minVal=40.0; maxVal=999 }
+
+object GRADE_I <<SystemicToxicityGrade>>
+object GRADE_II <<SystemicToxicityGrade>>
+object GRADE_III <<SystemicToxicityGrade>>
+object GRADE_IV <<SystemicToxicityGrade>>
+
+FeverRule_0 --> CCTG522 : appliesIfTherapy
+FeverRule_1 --> CCTG522 : appliesIfTherapy
+FeverRule_2 --> CCTG522 : appliesIfTherapy
+
+FeverRule_0 --> GRADE_I : yieldsGrade
+FeverRule_1 --> GRADE_II : yieldsGrade
+FeverRule_2 --> GRADE_III : yieldsGrade
+
+' Chills (symbolic)
+object ChillsObservationRule_0 <<SymptomToGradeRule>> { label="None" }
+object ChillsObservationRule_1 <<SymptomToGradeRule>> { label="Shaking" }
+object ChillsObservationRule_2 <<SymptomToGradeRule>> { label="Rigor" }
+
+ChillsObservationRule_0 --> CCTG522 : appliesIfTherapy
+ChillsObservationRule_1 --> CCTG522 : appliesIfTherapy
+ChillsObservationRule_2 --> CCTG522 : appliesIfTherapy
+
+ChillsObservationRule_0 --> GRADE_I : yieldsGrade
+ChillsObservationRule_1 --> GRADE_II : yieldsGrade
+ChillsObservationRule_2 --> GRADE_III : yieldsGrade
+
+' Skin-look (symbolic)
+object SkinLookObservationRule_0 <<SymptomToGradeRule>> { label="Erythema" }
+object SkinLookObservationRule_1 <<SymptomToGradeRule>> { label="Vesiculation" }
+object SkinLookObservationRule_2 <<SymptomToGradeRule>> { label="Desquamation" }
+object SkinLookObservationRule_3 <<SymptomToGradeRule>> { label="Exfoliation" }
+
+SkinLookObservationRule_0 --> CCTG522 : appliesIfTherapy
+SkinLookObservationRule_1 --> CCTG522 : appliesIfTherapy
+SkinLookObservationRule_2 --> CCTG522 : appliesIfTherapy
+SkinLookObservationRule_3 --> CCTG522 : appliesIfTherapy
+
+SkinLookObservationRule_0 --> GRADE_I : yieldsGrade
+SkinLookObservationRule_1 --> GRADE_II : yieldsGrade
+SkinLookObservationRule_2 --> GRADE_III : yieldsGrade
+SkinLookObservationRule_3 --> GRADE_IV : yieldsGrade
+
+' Allergic-state (symbolic)
+object AllergicStateObservationRule_0 <<SymptomToGradeRule>> { label="Edema" }
+object AllergicStateObservationRule_1 <<SymptomToGradeRule>> { label="Bronchospasm" }
+object AllergicStateObservationRule_2 <<SymptomToGradeRule>> { label="Severe-Bronchospasm" }
+object AllergicStateObservationRule_3 <<SymptomToGradeRule>> { label="Anaphylactic-Shock" }
+
+AllergicStateObservationRule_0 --> CCTG522 : appliesIfTherapy
+AllergicStateObservationRule_1 --> CCTG522 : appliesIfTherapy
+AllergicStateObservationRule_2 --> CCTG522 : appliesIfTherapy
+AllergicStateObservationRule_3 --> CCTG522 : appliesIfTherapy
+
+AllergicStateObservationRule_0 --> GRADE_I : yieldsGrade
+AllergicStateObservationRule_1 --> GRADE_II : yieldsGrade
+AllergicStateObservationRule_2 --> GRADE_III : yieldsGrade
+AllergicStateObservationRule_3 --> GRADE_IV : yieldsGrade
+@enduml

@@ -215,13 +215,229 @@ def load_kb():
         return {}
 
 def save_kb(kb_data):
-    """Save knowledge base to JSON file."""
+    """Save knowledge base to JSON file and auto-export ontology files."""
     try:
         with open(KB_PATH, 'w') as f:
             json.dump(kb_data, f, indent=2)
+        
+        # Auto-export ontology files
+        export_ontology_files(kb_data)
+        
         return True
     except Exception as e:
         st.error(f"Error saving knowledge base: {e}")
+        return False
+
+def export_ontology_files(kb_data):
+    """Export knowledge base to PlantUML ontology files."""
+    
+    # Generate schema file
+    schema_content = """@startuml ontology_schema
+hide circle
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam classFontStyle bold
+
+' Core classes
+class Patient {
+  +hasGender: String
+}
+
+abstract class Observation {
+  numericValue: Decimal [0..1]
+  symbolicValue: String [0..1]
+}
+
+class HemoglobinObservation
+class WBCObservation
+class FeverObservation
+class ChillsObservation
+class SkinLookObservation
+class AllergenicObservation as "AllergicStateObservation"
+class TherapyStatusObservation
+
+HemoglobinObservation -up-|> Observation
+WBCObservation -up-|> Observation
+FeverObservation -up-|> Observation
+ChillsObservation -up-|> Observation
+SkinLookObservation -up-|> Observation
+"AllergicStateObservation" -up-|> Observation
+TherapyStatusObservation -up-|> Observation
+
+class State
+class HemoglobinState
+class HematologicalState
+class SystemicToxicityGrade {
+  aggregation: "MAX"  ' policy hint
+}
+
+HemoglobinState -up-|> State
+HematologicalState -up-|> State
+SystemicToxicityGrade -up-|> State
+
+class RangeSpec {
+  label: String
+  minVal: Decimal
+  maxVal: Decimal
+}
+
+class Partition {
+  label: String
+  minVal: Decimal [0..1]
+  maxVal: Decimal [0..1]
+}
+
+class MatrixCell {
+  label: String
+}
+
+class SymptomToGradeRule {
+  label: String [0..1]
+  minVal: Decimal [0..1]
+  maxVal: Decimal [0..1]
+}
+
+' Associations
+Patient "1" -- "0..*" Observation : hasObservation
+Patient "1" -- "0..*" State : hasState
+
+RangeSpec "1" --> "1" State : mapsToState
+Partition "1" --> "1" Observation : partitionOf
+MatrixCell "1" --> "1" Partition : hgbPartition
+MatrixCell "1" --> "1" Partition : wbcPartition
+MatrixCell "1" --> "1" State : mapsTo
+SymptomToGradeRule "0..*" --> "1" TherapyStatusObservation : appliesIfTherapy
+SymptomToGradeRule "1" --> "1" Observation : symptomObservation
+SymptomToGradeRule "1" --> "1" SystemicToxicityGrade : yieldsGrade
+
+note right of RangeSpec
+  Used for Hb thresholds per gender.
+  Logic (informal):
+    if hasGender in {male|female}
+    and Hb numericValue in [minVal, maxVal)
+    then assign mapsToState
+end note
+
+note right of MatrixCell
+  Represents one cell in the Hb×WBC matrix (per gender).
+  Given a patient's Hb and WBC partitions, the cell's
+  mapped State is assigned.
+end note
+
+note right of SymptomToGradeRule
+  Gated by therapy (e.g., CCTG522).
+  For numeric Fever, use minVal/maxVal intervals.
+  For symbolic symptoms (Chills/Skin/Sensitivity),
+  use 'label' to hold the symbolic value.
+end note
+@enduml"""
+
+    # Generate instances file
+    instances_content = "@startuml ontology_instances\nhide circle\nskinparam shadowing false\nskinparam objectFontStyle bold\n\n"
+    
+    # Add hemoglobin ranges
+    hgb_table = kb_data.get("classification_tables", {}).get("hemoglobin_state", {})
+    for gender in ["female", "male"]:
+        if gender in hgb_table.get("rules", {}):
+            instances_content += f"' =====================\n' Hemoglobin ranges ({gender})\n' =====================\n"
+            rules = hgb_table["rules"][gender]["ranges"]
+            for i, rule in enumerate(rules):
+                if rule.get("state"):  # Skip empty states
+                    instances_content += f"object HB_{gender}_{i} <<RangeSpec>> {{\n"
+                    instances_content += f"  label = \"Hb {gender} range {i}\"\n"
+                    instances_content += f"  minVal = {rule['min']}\n"
+                    instances_content += f"  maxVal = {rule['max']}\n"
+                    instances_content += "}\n"
+                    
+                    # Create state object if not already defined
+                    state_name = rule["state"].replace(" ", "_")
+                    instances_content += f"object {state_name} <<HemoglobinState>>\n"
+                    instances_content += f"HB_{gender}_{i} --> {state_name} : mapsToState\n\n"
+    
+    # Add hematological matrix
+    hema_table = kb_data.get("classification_tables", {}).get("hematological_state", {})
+    for gender in ["female", "male"]:
+        if gender in hema_table.get("rules", {}):
+            instances_content += f"' =====================\n' Hematological matrix ({gender})\n' =====================\n"
+            rules = hema_table["rules"][gender]
+            
+            # Add partitions
+            for i, hgb_part in enumerate(rules.get("hgb_partitions", [])):
+                instances_content += f"object HGBpart_{gender}_{i} <<Partition>> {{ label = \"Hb {gender} {hgb_part}\"; "
+                if "+" in hgb_part:
+                    min_val = hgb_part.replace("+", "")
+                    instances_content += f"minVal={min_val} }}\n"
+                else:
+                    min_val, max_val = hgb_part.split("-")
+                    instances_content += f"minVal={min_val}; maxVal={max_val} }}\n"
+            
+            for i, wbc_part in enumerate(rules.get("wbc_partitions", [])):
+                instances_content += f"object WBCpart_{gender}_{i} <<Partition>> {{ label = \"WBC {gender} {wbc_part}\"; "
+                if "+" in wbc_part:
+                    min_val = wbc_part.replace("+", "")
+                    instances_content += f"minVal={min_val} }}\n"
+                else:
+                    min_val, max_val = wbc_part.split("-")
+                    instances_content += f"minVal={min_val}; maxVal={max_val} }}\n"
+            
+            # Add matrix cells
+            matrix = rules.get("matrix", [])
+            for i, row in enumerate(matrix):
+                for j, state in enumerate(row):
+                    if state:  # Skip empty states
+                        state_name = state.replace(" ", "_")
+                        instances_content += f"object MATRIX_{gender}_{i}_{j} <<MatrixCell>> {{ label = \"Cell {gender} Hb{i}xWBC{j}\" }}\n"
+                        instances_content += f"MATRIX_{gender}_{i}_{j} --> HGBpart_{gender}_{i} : hgbPartition\n"
+                        instances_content += f"MATRIX_{gender}_{i}_{j} --> WBCpart_{gender}_{j} : wbcPartition\n"
+                        instances_content += f"MATRIX_{gender}_{i}_{j} --> {state_name} : mapsTo\n\n"
+    
+    # Add systemic toxicity rules
+    sys_tox_table = kb_data.get("classification_tables", {}).get("systemic_toxicity", {})
+    if sys_tox_table:
+        instances_content += "' =====================\n' Systemic toxicity rules (Therapy=CCTG522)\n' =====================\n"
+        instances_content += "object CCTG522 <<TherapyStatusObservation>> { label=\"CCTG522\" }\n\n"
+        
+        # Add fever rules
+        fever_rules = sys_tox_table.get("rules", {}).get("Fever", [])
+        for i, rule in enumerate(fever_rules):
+            instances_content += f"object FeverRule_{i} <<SymptomToGradeRule>> {{ minVal={rule.get('min', 0)}; maxVal={rule.get('max', 999)} }}\n"
+            instances_content += f"FeverRule_{i} --> CCTG522 : appliesIfTherapy\n"
+            instances_content += f"FeverRule_{i} --> GRADE_{rule.get('grade', 'I')} : yieldsGrade\n\n"
+        
+        # Add chills rules
+        chills_rules = sys_tox_table.get("rules", {}).get("Chills", [])
+        for i, rule in enumerate(chills_rules):
+            instances_content += f"object ChillsObservationRule_{i} <<SymptomToGradeRule>> {{ label=\"{rule.get('value', 'None')}\" }}\n"
+            instances_content += f"ChillsObservationRule_{i} --> CCTG522 : appliesIfTherapy\n"
+            instances_content += f"ChillsObservationRule_{i} --> GRADE_{rule.get('grade', 'I')} : yieldsGrade\n\n"
+        
+        # Add skin look rules
+        skin_rules = sys_tox_table.get("rules", {}).get("Skin-look", [])
+        for i, rule in enumerate(skin_rules):
+            instances_content += f"object SkinLookObservationRule_{i} <<SymptomToGradeRule>> {{ label=\"{rule.get('value', 'Erythema')}\" }}\n"
+            instances_content += f"SkinLookObservationRule_{i} --> CCTG522 : appliesIfTherapy\n"
+            instances_content += f"SkinLookObservationRule_{i} --> GRADE_{rule.get('grade', 'I')} : yieldsGrade\n\n"
+        
+        # Add allergic state rules
+        allergic_rules = sys_tox_table.get("rules", {}).get("Allergic-state", [])
+        for i, rule in enumerate(allergic_rules):
+            instances_content += f"object AllergicStateObservationRule_{i} <<SymptomToGradeRule>> {{ label=\"{rule.get('value', 'Edema')}\" }}\n"
+            instances_content += f"AllergicStateObservationRule_{i} --> CCTG522 : appliesIfTherapy\n"
+            instances_content += f"AllergicStateObservationRule_{i} --> GRADE_{rule.get('grade', 'I')} : yieldsGrade\n\n"
+    
+    instances_content += "@enduml"
+    
+    # Write files
+    try:
+        with open("ontology_schema.puml", "w", encoding="utf-8") as f:
+            f.write(schema_content)
+        
+        with open("ontology_instances.puml", "w", encoding="utf-8") as f:
+            f.write(instances_content)
+        
+        return True
+    except Exception as e:
+        st.error(f"Error exporting ontology files: {e}")
         return False
 
 def render_classification_tables_editor(kb_data):
@@ -673,7 +889,7 @@ def render_file_management(kb_data):
     """Render file management section for import/export."""
     st.markdown("### Knowledge Base File Management")
     
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     
     with col1:
         st.markdown("**📥 Import Knowledge Base**")
@@ -727,6 +943,53 @@ def render_file_management(kb_data):
             mime="application/json",
             key="download_kb"
         )
+    
+    with col3:
+        st.markdown("**🔗 Ontology Synchronization**")
+        st.info("Keep your ontology files in sync with your knowledge base.")
+        
+        # Manual sync button
+        if st.button("🔄 Sync Ontology Files", key="sync_ontology"):
+            if export_ontology_files(kb_data):
+                st.success("✅ Ontology files synchronized!")
+            else:
+                st.error("❌ Sync failed")
+        
+        # Show current ontology files status
+        st.markdown("**📄 Current Ontology Files:**")
+        if Path("ontology_schema.puml").exists():
+            st.success("✅ `ontology_schema.puml` exists")
+        else:
+            st.warning("⚠️ `ontology_schema.puml` missing")
+        
+        if Path("ontology_instances.puml").exists():
+            st.success("✅ `ontology_instances.puml` exists")
+        else:
+            st.warning("⚠️ `ontology_instances.puml` missing")
+        
+        # Download ontology files
+        if Path("ontology_schema.puml").exists() and Path("ontology_instances.puml").exists():
+            st.markdown("**📥 Download Ontology Files:**")
+            
+            with open("ontology_schema.puml", "r", encoding="utf-8") as f:
+                schema_content = f.read()
+            st.download_button(
+                label="📄 Download Schema",
+                data=schema_content,
+                file_name="ontology_schema.puml",
+                mime="text/plain",
+                key="download_schema"
+            )
+            
+            with open("ontology_instances.puml", "r", encoding="utf-8") as f:
+                instances_content = f.read()
+            st.download_button(
+                label="📄 Download Instances",
+                data=instances_content,
+                file_name="ontology_instances.puml",
+                mime="text/plain",
+                key="download_instances"
+            )
 
 def render_kb_overview(kb_data):
     """Render overview of the entire knowledge base."""
@@ -774,6 +1037,248 @@ def render_kb_overview(kb_data):
     else:
         st.info("No validity periods defined.")
 
+def render_ontology_viewer(kb_data):
+    """Render the ontology viewer to display PlantUML files in an organized way."""
+    st.markdown("### 🔗 Ontology Viewer")
+    st.info("View and manage your ontology files. These files are automatically synchronized with your knowledge base.")
+    
+    # Check if ontology files exist
+    schema_exists = Path("ontology_schema.puml").exists()
+    instances_exists = Path("ontology_instances.puml").exists()
+    
+    if not schema_exists or not instances_exists:
+        st.warning("⚠️ Some ontology files are missing. Click the button below to generate them.")
+        if st.button("🔄 Generate Ontology Files", key="generate_ontology_files"):
+            if export_ontology_files(kb_data):
+                st.success("✅ Ontology files generated successfully!")
+                st.rerun()
+            else:
+                st.error("❌ Failed to generate ontology files")
+        return
+    
+    # Create tabs for different ontology components
+    schema_tab, instances_tab, summary_tab = st.tabs([
+        "🏗️ Schema Structure", 
+        "📊 Data Instances", 
+        "📋 Summary"
+    ])
+    
+    with schema_tab:
+        st.markdown("#### 🏗️ Ontology Schema Structure")
+        st.markdown("This file defines the conceptual structure and relationships of your clinical decision support system.")
+        
+        with open("ontology_schema.puml", "r", encoding="utf-8") as f:
+            schema_content = f.read()
+        
+        # Display schema with syntax highlighting
+        st.code(schema_content, language="plantuml")
+        
+        # Schema components breakdown
+        st.markdown("**🔍 Schema Components:**")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("""
+            **Core Classes:**
+            - `Patient` - Patient information
+            - `Observation` - Abstract base for all observations
+            - `State` - Abstract base for all states
+            
+            **Observation Types:**
+            - `HemoglobinObservation`
+            - `WBCObservation`
+            - `FeverObservation`
+            - `ChillsObservation`
+            - `SkinLookObservation`
+            - `AllergicStateObservation`
+            - `TherapyStatusObservation`
+            """)
+        
+        with col2:
+            st.markdown("""
+            **State Types:**
+            - `HemoglobinState`
+            - `HematologicalState`
+            - `SystemicToxicityGrade`
+            
+            **Rule Classes:**
+            - `RangeSpec` - Value ranges with thresholds
+            - `Partition` - Value partitions
+            - `MatrixCell` - Decision matrix cells
+            - `SymptomToGradeRule` - Symptom to grade mapping
+            """)
+        
+        # Download button
+        st.download_button(
+            label="📄 Download Schema File",
+            data=schema_content,
+            file_name="ontology_schema.puml",
+            mime="text/plain",
+            key="download_schema_viewer"
+        )
+    
+    with instances_tab:
+        st.markdown("#### 📊 Ontology Data Instances")
+        st.markdown("This file contains the actual data instances that populate your ontology with clinical knowledge.")
+        
+        with open("ontology_instances.puml", "r", encoding="utf-8") as f:
+            instances_content = f.read()
+        
+        # Display instances with syntax highlighting
+        st.code(instances_content, language="plantuml")
+        
+        # Instances breakdown
+        st.markdown("**🔍 Instance Components:**")
+        
+        # Extract and display hemoglobin ranges
+        hgb_table = kb_data.get("classification_tables", {}).get("hemoglobin_state", {})
+        if hgb_table:
+            st.markdown("**🩸 Hemoglobin Ranges:**")
+            for gender in ["female", "male"]:
+                if gender in hgb_table.get("rules", {}):
+                    st.markdown(f"**{gender.title()}:**")
+                    rules = hgb_table["rules"][gender]["ranges"]
+                    for i, rule in enumerate(rules):
+                        if rule.get("state"):
+                            st.markdown(f"  - Range {i+1}: {rule['min']} - {rule['max']} → {rule['state']}")
+        
+        # Extract and display hematological matrix
+        hema_table = kb_data.get("classification_tables", {}).get("hematological_state", {})
+        if hema_table:
+            st.markdown("**🩺 Hematological Matrix:**")
+            for gender in ["female", "male"]:
+                if gender in hema_table.get("rules", {}):
+                    st.markdown(f"**{gender.title()}:**")
+                    rules = hema_table["rules"][gender]
+                    hgb_parts = rules.get("hgb_partitions", [])
+                    wbc_parts = rules.get("wbc_partitions", [])
+                    matrix = rules.get("matrix", [])
+                    
+                    if matrix:
+                        # Create a nice table display
+                        matrix_data = []
+                        for i, row in enumerate(matrix):
+                            for j, cell in enumerate(row):
+                                if cell:
+                                    matrix_data.append({
+                                        "Hb Partition": hgb_parts[i] if i < len(hgb_parts) else "N/A",
+                                        "WBC Partition": wbc_parts[j] if j < len(wbc_parts) else "N/A",
+                                        "State": cell
+                                    })
+                        
+                        if matrix_data:
+                            st.dataframe(matrix_data, use_container_width=True)
+        
+        # Extract and display systemic toxicity rules
+        sys_tox_table = kb_data.get("classification_tables", {}).get("systemic_toxicity", {})
+        if sys_tox_table:
+            st.markdown("**🌡️ Systemic Toxicity Rules (CCTG522):**")
+            rules = sys_tox_table.get("rules", {})
+            
+            for symptom, symptom_rules in rules.items():
+                st.markdown(f"**{symptom}:**")
+                for i, rule in enumerate(symptom_rules):
+                    if "range" in rule:
+                        st.markdown(f"  - Range {i+1}: {rule['range'][0]} - {rule['range'][1]} → {rule.get('grade', 'N/A')}")
+                    elif "value" in rule:
+                        st.markdown(f"  - Value {i+1}: {rule['value']} → {rule.get('grade', 'N/A')}")
+        
+        # Download button
+        st.download_button(
+            label="📄 Download Instances File",
+            data=instances_content,
+            file_name="ontology_instances.puml",
+            mime="text/plain",
+            key="download_instances_viewer"
+        )
+    
+    with summary_tab:
+        st.markdown("#### 📋 Ontology Summary")
+        
+        # File status
+        st.markdown("**📄 File Status:**")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if schema_exists:
+                st.success("✅ Schema file exists")
+                schema_size = Path("ontology_schema.puml").stat().st_size
+                st.info(f"Size: {schema_size} bytes")
+            else:
+                st.error("❌ Schema file missing")
+        
+        with col2:
+            if instances_exists:
+                st.success("✅ Instances file exists")
+                instances_size = Path("ontology_instances.puml").stat().st_size
+                st.info(f"Size: {instances_size} bytes")
+            else:
+                st.error("❌ Instances file missing")
+        
+        # Statistics
+        st.markdown("**📊 Ontology Statistics:**")
+        
+        # Count hemoglobin ranges
+        hgb_ranges = 0
+        hgb_table = kb_data.get("classification_tables", {}).get("hemoglobin_state", {})
+        if hgb_table:
+            for gender in ["female", "male"]:
+                if gender in hgb_table.get("rules", {}):
+                    hgb_ranges += len([r for r in hgb_table["rules"][gender]["ranges"] if r.get("state")])
+        
+        # Count matrix cells
+        matrix_cells = 0
+        hema_table = kb_data.get("classification_tables", {}).get("hematological_state", {})
+        if hema_table:
+            for gender in ["female", "male"]:
+                if gender in hema_table.get("rules", {}):
+                    matrix = hema_table["rules"][gender].get("matrix", [])
+                    matrix_cells += sum(len([cell for cell in row if cell]) for row in matrix)
+        
+        # Count toxicity rules
+        toxicity_rules = 0
+        sys_tox_table = kb_data.get("classification_tables", {}).get("systemic_toxicity", {})
+        if sys_tox_table:
+            rules = sys_tox_table.get("rules", {})
+            toxicity_rules = sum(len(symptom_rules) for symptom_rules in rules.values())
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Hemoglobin Ranges", hgb_ranges)
+        with col2:
+            st.metric("Matrix Cells", matrix_cells)
+        with col3:
+            st.metric("Toxicity Rules", toxicity_rules)
+        
+        # Last modified
+        if schema_exists and instances_exists:
+            schema_time = Path("ontology_schema.puml").stat().st_mtime
+            instances_time = Path("ontology_instances.puml").stat().st_mtime
+            last_modified = max(schema_time, instances_time)
+            
+            from datetime import datetime
+            st.markdown(f"**🕒 Last Modified:** {datetime.fromtimestamp(last_modified).strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        # Actions
+        st.markdown("**⚡ Actions:**")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("🔄 Regenerate Ontology Files", key="regenerate_ontology"):
+                if export_ontology_files(kb_data):
+                    st.success("✅ Ontology files regenerated!")
+                    st.rerun()
+                else:
+                    st.error("❌ Failed to regenerate")
+        
+        with col2:
+            if st.button("📥 Download Both Files", key="download_both_ontology"):
+                if schema_exists and instances_exists:
+                    # Create a zip-like experience by offering both files
+                    st.info("Use the download buttons in the individual tabs above to download each file separately.")
+                else:
+                    st.warning("Files not available for download")
+
 def render_kb_editor():
     """Main function to render the complete Knowledge Base Editor."""
     st.markdown("""
@@ -807,12 +1312,13 @@ def render_kb_editor():
         return
     
     # Create tabs for different sections
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "📊 Classification Tables", 
         "🏥 Treatment Rules", 
         "⏰ Validity Periods",
         "📁 File Management",
-        "📋 Overview"
+        "📋 Overview",
+        "🔗 Ontology Viewer"
     ])
     
     with tab1:
@@ -830,6 +1336,9 @@ def render_kb_editor():
     with tab5:
         render_kb_overview(kb_data)
     
+    with tab6:
+        render_ontology_viewer(kb_data)
+    
     # Status information
     st.markdown("---")
     st.markdown("""
@@ -837,8 +1346,9 @@ def render_kb_editor():
     - **Classification Tables**: Define medical parameter classifications (1:1, 2:1 matrix, 4:1 maximal OR)
     - **Treatment Rules**: Set treatment protocols based on medical states and toxicity grades
     - **Validity Periods**: Configure how long test results remain valid
-    - **File Management**: Import/export complete knowledge bases
+    - **File Management**: Import/export complete knowledge bases and sync ontology files
     - **Overview**: Get a summary of your entire knowledge base
+    - **Ontology Viewer**: View and manage your PlantUML ontology files with organized components
     
-    All changes are saved automatically to `knowledge_base.json`.
+    All changes are saved automatically to `knowledge_base.json` and ontology files are auto-synchronized.
     """) 
