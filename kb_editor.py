@@ -1,5 +1,5 @@
 import re
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 import streamlit as st
 import json
@@ -102,6 +102,273 @@ def get_hematological_state(hgb: float, wbc: float, gender: str):
         return None
 
     return matrix[wbc_idx][hgb_idx]
+
+
+class OntologyInferenceEngine:
+    """Formal inference engine for ontology-based reasoning"""
+    
+    def __init__(self, kb_data):
+        self.kb_data = kb_data
+        self.classification_tables = kb_data.get("classification_tables", {})
+        self.treatment_rules = kb_data.get("treatment_rules", {})
+        self.validity_periods = kb_data.get("validity_periods", {})
+    
+    def infer_patient_states(self, patient_data):
+        """
+        Perform formal inference to determine patient states based on observations.
+        
+        Args:
+            patient_data: Dict with patient observations like:
+                {
+                    "gender": "female",
+                    "hemoglobin": 9.5,
+                    "wbc": 3.2,
+                    "fever": 38.5,
+                    "chills": "Yes",
+                    "skin_look": "Normal",
+                    "allergic_state": "No",
+                    "therapy": "CCTG522"
+                }
+        
+        Returns:
+            Dict with inferred states and reasoning chain
+        """
+        results = {
+            "patient_id": patient_data.get("patient_id", "Unknown"),
+            "inference_time": datetime.now().isoformat(),
+            "observations": patient_data,
+            "inferred_states": {},
+            "reasoning_chain": [],
+            "confidence_scores": {},
+            "treatment_recommendations": []
+        }
+        
+        # 1. Declarative Knowledge Inference - State Classification
+        self._infer_declarative_states(patient_data, results)
+        
+        # 2. Procedural Knowledge Inference - Treatment Rules
+        self._infer_procedural_knowledge(patient_data, results)
+        
+        # 3. Temporal Reasoning - Validity Periods
+        self._apply_temporal_reasoning(patient_data, results)
+        
+        # 4. Confidence Scoring
+        self._calculate_confidence_scores(results)
+        
+        return results
+    
+    def _infer_declarative_states(self, patient_data, results):
+        """Infer states based on declarative knowledge (classification tables)"""
+        
+        # Hemoglobin State Inference (1:1 classification)
+        if "hemoglobin" in patient_data and "gender" in patient_data:
+            hgb_state = self._infer_hemoglobin_state(
+                patient_data["hemoglobin"], 
+                patient_data["gender"]
+            )
+            if hgb_state:
+                results["inferred_states"]["hemoglobin_state"] = hgb_state
+                results["reasoning_chain"].append({
+                    "type": "declarative",
+                    "rule": "hemoglobin_state",
+                    "input": {"hemoglobin": patient_data["hemoglobin"], "gender": patient_data["gender"]},
+                    "output": hgb_state,
+                    "confidence": 0.95
+                })
+        
+        # Hematological State Inference (2:1 AND classification)
+        if "hemoglobin" in patient_data and "wbc" in patient_data and "gender" in patient_data:
+            hema_state = self._infer_hematological_state(
+                patient_data["hemoglobin"],
+                patient_data["wbc"], 
+                patient_data["gender"]
+            )
+            if hema_state:
+                results["inferred_states"]["hematological_state"] = hema_state
+                results["reasoning_chain"].append({
+                    "type": "declarative",
+                    "rule": "hematological_state",
+                    "input": {"hemoglobin": patient_data["hemoglobin"], "wbc": patient_data["wbc"], "gender": patient_data["gender"]},
+                    "output": hema_state,
+                    "confidence": 0.90
+                })
+        
+        # Systemic Toxicity Inference (4:1 MAXIMAL OR classification)
+        toxicity_grade = self._infer_systemic_toxicity(patient_data)
+        if toxicity_grade:
+            results["inferred_states"]["systemic_toxicity"] = toxicity_grade
+            results["reasoning_chain"].append({
+                "type": "declarative",
+                "rule": "systemic_toxicity",
+                "input": {k: v for k, v in patient_data.items() if k in ["fever", "chills", "skin_look", "allergic_state"]},
+                "output": toxicity_grade,
+                "confidence": 0.85
+            })
+    
+    def _infer_hemoglobin_state(self, hgb_level, gender):
+        """Infer hemoglobin state using 1:1 classification"""
+        table = self.classification_tables.get("hemoglobin_state", {})
+        rules = table.get("rules", {}).get(gender.lower(), {}).get("ranges", [])
+        
+        for rule in rules:
+            if rule.get("min", 0) <= hgb_level < rule.get("max", float('inf')):
+                return rule.get("state")
+        return None
+    
+    def _infer_hematological_state(self, hgb, wbc, gender):
+        """Infer hematological state using 2:1 AND classification"""
+        table = self.classification_tables.get("hematological_state", {})
+        rules = table.get("rules", {}).get(gender.lower(), {})
+        
+        hgb_bins = rules.get("hgb_partitions", [])
+        wbc_bins = rules.get("wbc_partitions", [])
+        matrix = rules.get("matrix", [])
+        
+        # Find partitions
+        hgb_idx = self._find_partition_index(hgb, hgb_bins)
+        wbc_idx = self._find_partition_index(wbc, wbc_bins)
+        
+        if hgb_idx is not None and wbc_idx is not None:
+            return matrix[hgb_idx][wbc_idx]
+        return None
+    
+    def _infer_systemic_toxicity(self, patient_data):
+        """Infer systemic toxicity using 4:1 MAXIMAL OR classification"""
+        table = self.classification_tables.get("systemic_toxicity", {})
+        rules = table.get("rules", {}).get("CCTG522", {}).get("symptoms", [])
+        
+        max_grade = 0
+        for rule in rules:
+            grade = self._evaluate_toxicity_rule(rule, patient_data)
+            max_grade = max(max_grade, grade)
+        
+        return f"Grade {max_grade}" if max_grade > 0 else None
+    
+    def _evaluate_toxicity_rule(self, rule, patient_data):
+        """Evaluate a single toxicity rule"""
+        symptom = rule.get("symptom")
+        value = patient_data.get(symptom.lower().replace(" ", "_"))
+        
+        if value is None:
+            return 0
+        
+        # Numeric evaluation (e.g., fever)
+        if isinstance(value, (int, float)):
+            min_val = rule.get("min", 0)
+            max_val = rule.get("max", float('inf'))
+            if min_val <= value <= max_val:
+                return rule.get("grade", 0)
+        
+        # Symbolic evaluation (e.g., chills, skin_look)
+        elif isinstance(value, str):
+            if value.lower() == rule.get("value", "").lower():
+                return rule.get("grade", 0)
+        
+        return 0
+    
+    def _infer_procedural_knowledge(self, patient_data, results):
+        """Infer treatment recommendations based on procedural knowledge"""
+        treatment_rules = self.treatment_rules.get("rules", [])
+        
+        for rule in treatment_rules:
+            if self._evaluate_treatment_condition(rule, patient_data, results):
+                recommendation = {
+                    "rule_id": rule.get("id"),
+                    "condition": rule.get("condition"),
+                    "recommendation": rule.get("recommendation"),
+                    "priority": rule.get("priority", "medium"),
+                    "confidence": 0.80
+                }
+                results["treatment_recommendations"].append(recommendation)
+                results["reasoning_chain"].append({
+                    "type": "procedural",
+                    "rule": f"treatment_rule_{rule.get('id')}",
+                    "input": rule.get("condition"),
+                    "output": rule.get("recommendation"),
+                    "confidence": 0.80
+                })
+    
+    def _evaluate_treatment_condition(self, rule, patient_data, results):
+        """Evaluate if a treatment condition is met"""
+        condition = rule.get("condition", {})
+        
+        # Check hemoglobin state condition
+        if "hemoglobin_state" in condition:
+            required_state = condition["hemoglobin_state"]
+            actual_state = results["inferred_states"].get("hemoglobin_state")
+            if actual_state != required_state:
+                return False
+        
+        # Check hematological state condition
+        if "hematological_state" in condition:
+            required_state = condition["hematological_state"]
+            actual_state = results["inferred_states"].get("hematological_state")
+            if actual_state != required_state:
+                return False
+        
+        # Check systemic toxicity condition
+        if "systemic_toxicity" in condition:
+            required_grade = condition["systemic_toxicity"]
+            actual_grade = results["inferred_states"].get("systemic_toxicity")
+            if actual_grade != required_grade:
+                return False
+        
+        # Check gender condition
+        if "gender" in condition:
+            if patient_data.get("gender") != condition["gender"]:
+                return False
+        
+        return True
+    
+    def _apply_temporal_reasoning(self, patient_data, results):
+        """Apply temporal reasoning based on validity periods"""
+        for observation, value in patient_data.items():
+            if observation in self.validity_periods:
+                validity = self.validity_periods[observation]
+                results["reasoning_chain"].append({
+                    "type": "temporal",
+                    "rule": "validity_period",
+                    "observation": observation,
+                    "validity": validity,
+                    "confidence": 0.70
+                })
+    
+    def _calculate_confidence_scores(self, results):
+        """Calculate confidence scores for inferences"""
+        for chain in results["reasoning_chain"]:
+            rule_type = chain["type"]
+            if rule_type == "declarative":
+                results["confidence_scores"][chain["rule"]] = chain["confidence"]
+            elif rule_type == "procedural":
+                results["confidence_scores"][f"treatment_{chain['rule']}"] = chain["confidence"]
+    
+    def _find_partition_index(self, value, bins):
+        """Find the partition index for a value"""
+        for i, rng in enumerate(bins):
+            if "+" in rng:
+                min_val = float(rng.replace("+", ""))
+                if value >= min_val:
+                    return i
+            else:
+                min_val, max_val = map(float, rng.split("-"))
+                if min_val <= value < max_val:
+                    return i
+        return None
+    
+    def explain_inference(self, patient_data):
+        """Provide detailed explanation of inference process"""
+        results = self.infer_patient_states(patient_data)
+        
+        explanation = {
+            "summary": f"Inference completed for patient {results['patient_id']}",
+            "observations_processed": list(patient_data.keys()),
+            "states_inferred": results["inferred_states"],
+            "treatments_recommended": len(results["treatment_recommendations"]),
+            "reasoning_steps": len(results["reasoning_chain"]),
+            "overall_confidence": sum(results["confidence_scores"].values()) / len(results["confidence_scores"]) if results["confidence_scores"] else 0
+        }
+        
+        return explanation
 
 
 ##
@@ -1133,194 +1400,202 @@ def render_ontology_viewer(kb_data):
         "📋 Summary"
     ])
     
-    with schema_tab:
-        st.markdown("#### 🏗️ Ontology Schema Structure")
-        st.markdown("This file defines the conceptual structure and relationships of your clinical decision support system.")
-        
-        with open("ontology_schema.puml", "r", encoding="utf-8") as f:
-            schema_content = f.read()
-        
-        # Display schema with syntax highlighting
-        st.code(schema_content, language="plantuml")
-        
-        # Schema components breakdown - Dynamic based on KB tables
-        st.markdown("**🔍 Schema Components:**")
-        col1, col2 = st.columns(2)
-        
-        # Get all classification tables to build dynamic lists
-        classification_tables = kb_data.get("classification_tables", {})
-        
-        # Debug: Show what tables are found
-        st.info(f"📊 Found {len(classification_tables)} classification tables: {list(classification_tables.keys())}")
-        
-        # Build observation types list
-        observation_types = []
-        for table_name in classification_tables.keys():
-            if table_name == "hemoglobin_state":
-                observation_types.append("`HemoglobinObservation`")
-            elif table_name == "hematological_state":
-                observation_types.append("`WBCObservation`")
-            elif table_name == "systemic_toxicity":
-                observation_types.extend([
-                    "`FeverObservation`",
-                    "`ChillsObservation`",
-                    "`SkinLookObservation`",
-                    "`AllergicStateObservation`",
-                    "`TherapyStatusObservation`"
-                ])
-            else:
-                # For new tables like "sugar-level"
-                observation_name = table_name.replace("_", "").title() + "Observation"
-                observation_types.append(f"`{observation_name}`")
-        
-        # Build state types list
-        state_types = []
-        for table_name in classification_tables.keys():
-            if table_name == "hemoglobin_state":
-                state_types.append("`HemoglobinState`")
-            elif table_name == "hematological_state":
-                state_types.append("`HematologicalState`")
-            elif table_name == "systemic_toxicity":
-                state_types.append("`SystemicToxicityGrade`")
-            else:
-                # For new tables like "sugar-level"
-                state_name = table_name.replace("_", "").title() + "State"
-                state_types.append(f"`{state_name}`")
-        
-        # Remove duplicates while preserving order
-        seen = set()
-        unique_state_types = []
-        for state_type in state_types:
-            if state_type not in seen:
-                seen.add(state_type)
-                unique_state_types.append(state_type)
-        state_types = unique_state_types
-        
-        with col1:
-            st.markdown("**Core Classes:**")
-            st.markdown("- `Patient` - Patient information")
-            st.markdown("- `Observation` - Abstract base for all observations")
-            st.markdown("- `State` - Abstract base for all states")
-            st.markdown("")
-            st.markdown("**Observation Types:**")
-            for obs_type in observation_types:
-                st.markdown(f"- {obs_type}")
-        
-        with col2:
-            st.markdown("**State Types:**")
-            for state_type in state_types:
-                st.markdown(f"- {state_type}")
-            st.markdown("")
-            st.markdown("**Rule Classes:**")
-            st.markdown("- `RangeSpec` - Value ranges with thresholds")
-            st.markdown("- `Partition` - Value partitions")
-            st.markdown("- `MatrixCell` - Decision matrix cells")
-            st.markdown("- `SymptomToGradeRule` - Symptom to grade mapping")
-        
-        # Download button
-        st.download_button(
-            label="📄 Download Schema File",
-            data=schema_content,
-            file_name="ontology_schema.puml",
-            mime="text/plain",
-            key="download_schema_viewer"
-        )
+     with schema_tab:
+         st.markdown("#### 🏗️ Ontology Schema Structure")
+         st.markdown("This file defines the conceptual structure and relationships of your clinical decision support system.")
+         
+         # Schema components breakdown - Dynamic based on KB tables
+         st.markdown("**🔍 Schema Components:**")
+         col1, col2 = st.columns(2)
+         
+         # Get all classification tables to build dynamic lists
+         classification_tables = kb_data.get("classification_tables", {})
+         
+         # Debug: Show what tables are found
+         st.info(f"📊 Found {len(classification_tables)} classification tables: {list(classification_tables.keys())}")
+         
+         # Build observation types list
+         observation_types = []
+         for table_name in classification_tables.keys():
+             if table_name == "hemoglobin_state":
+                 observation_types.append("`HemoglobinObservation`")
+             elif table_name == "hematological_state":
+                 observation_types.append("`WBCObservation`")
+             elif table_name == "systemic_toxicity":
+                 observation_types.extend([
+                     "`FeverObservation`",
+                     "`ChillsObservation`",
+                     "`SkinLookObservation`",
+                     "`AllergicStateObservation`",
+                     "`TherapyStatusObservation`"
+                 ])
+             else:
+                 # For new tables like "sugar-level"
+                 observation_name = table_name.replace("_", "").title() + "Observation"
+                 observation_types.append(f"`{observation_name}`")
+         
+         # Build state types list
+         state_types = []
+         for table_name in classification_tables.keys():
+             if table_name == "hemoglobin_state":
+                 state_types.append("`HemoglobinState`")
+             elif table_name == "hematological_state":
+                 state_types.append("`HematologicalState`")
+             elif table_name == "systemic_toxicity":
+                 state_types.append("`SystemicToxicityGrade`")
+             else:
+                 # For new tables like "sugar-level"
+                 state_name = table_name.replace("_", "").title() + "State"
+                 state_types.append(f"`{state_name}`")
+         
+         # Remove duplicates while preserving order
+         seen = set()
+         unique_state_types = []
+         for state_type in state_types:
+             if state_type not in seen:
+                 seen.add(state_type)
+                 unique_state_types.append(state_type)
+         state_types = unique_state_types
+         
+         with col1:
+             st.markdown("**Core Classes:**")
+             st.markdown("- `Patient` - Patient information")
+             st.markdown("- `Observation` - Abstract base for all observations")
+             st.markdown("- `State` - Abstract base for all states")
+             st.markdown("")
+             st.markdown("**Observation Types:**")
+             for obs_type in observation_types:
+                 st.markdown(f"- {obs_type}")
+         
+         with col2:
+             st.markdown("**State Types:**")
+             for state_type in state_types:
+                 st.markdown(f"- {state_type}")
+             st.markdown("")
+             st.markdown("**Rule Classes:**")
+             st.markdown("- `RangeSpec` - Value ranges with thresholds")
+             st.markdown("- `Partition` - Value partitions")
+             st.markdown("- `MatrixCell` - Decision matrix cells")
+             st.markdown("- `SymptomToGradeRule` - Symptom to grade mapping")
+         
+         # Now display the actual schema file content
+         st.markdown("---")
+         st.markdown("**📄 Schema File Content:**")
+         
+         with open("ontology_schema.puml", "r", encoding="utf-8") as f:
+             schema_content = f.read()
+         
+         # Display schema with syntax highlighting
+         st.code(schema_content, language="plantuml")
+         
+         # Download button
+         st.download_button(
+             label="📄 Download Schema File",
+             data=schema_content,
+             file_name="ontology_schema.puml",
+             mime="text/plain",
+             key="download_schema_viewer"
+         )
     
-    with instances_tab:
-        st.markdown("#### 📊 Ontology Data Instances")
-        st.markdown("This file contains the actual data instances that populate your ontology with clinical knowledge.")
-        
-        with open("ontology_instances.puml", "r", encoding="utf-8") as f:
-            instances_content = f.read()
-        
-        # Display instances with syntax highlighting
-        st.code(instances_content, language="plantuml")
-        
-        # Instances breakdown
-        st.markdown("**🔍 Instance Components:**")
-        
-        # Extract and display all classification tables
-        classification_tables = kb_data.get("classification_tables", {})
-        
-        for table_name, table_data in classification_tables.items():
-            table_type = table_data.get("type", "")
-            table_display_name = table_name.replace("_", " ").title()
-            
-            if table_name == "hemoglobin_state":
-                st.markdown("**🩸 Hemoglobin Ranges:**")
-                for gender in ["female", "male"]:
-                    if gender in table_data.get("rules", {}):
-                        st.markdown(f"**{gender.title()}:**")
-                        rules = table_data["rules"][gender]["ranges"]
-                        for i, rule in enumerate(rules):
-                            if rule.get("state"):
-                                st.markdown(f"  - Range {i+1}: {rule['min']} - {rule['max']} → {rule['state']}")
-            
-            elif table_name == "hematological_state":
-                st.markdown("**🩺 Hematological Matrix:**")
-                for gender in ["female", "male"]:
-                    if gender in table_data.get("rules", {}):
-                        st.markdown(f"**{gender.title()}:**")
-                        rules = table_data["rules"][gender]
-                        hgb_parts = rules.get("hgb_partitions", [])
-                        wbc_parts = rules.get("wbc_partitions", [])
-                        matrix = rules.get("matrix", [])
-                        
-                        if matrix:
-                            # Create a nice table display
-                            matrix_data = []
-                            for i, row in enumerate(matrix):
-                                for j, cell in enumerate(row):
-                                    if cell:
-                                        matrix_data.append({
-                                            "Hb Partition": hgb_parts[i] if i < len(hgb_parts) else "N/A",
-                                            "WBC Partition": wbc_parts[j] if j < len(wbc_parts) else "N/A",
-                                            "State": cell
-                                        })
-                            
-                            if matrix_data:
-                                st.dataframe(matrix_data, use_container_width=True)
-            
-            elif table_name == "systemic_toxicity":
-                st.markdown("**🌡️ Systemic Toxicity Rules (CCTG522):**")
-                rules = table_data.get("rules", {})
-                
-                for symptom, symptom_rules in rules.items():
-                    st.markdown(f"**{symptom}:**")
-                    for i, rule in enumerate(symptom_rules):
-                        if "range" in rule:
-                            st.markdown(f"  - Range {i+1}: {rule['range'][0]} - {rule['range'][1]} → {rule.get('grade', 'N/A')}")
-                        elif "value" in rule:
-                            st.markdown(f"  - Value {i+1}: {rule['value']} → {rule.get('grade', 'N/A')}")
-            
-            else:
-                # Handle new tables (like "sugar-level")
-                st.markdown(f"**📊 {table_display_name} ({table_type}):**")
-                for gender in ["female", "male"]:
-                    if gender in table_data.get("rules", {}):
-                        st.markdown(f"**{gender.title()}:**")
-                        if table_type == "1:1":
-                            rules = table_data["rules"][gender]["ranges"]
-                            for i, rule in enumerate(rules):
-                                if rule.get("state"):
-                                    st.markdown(f"  - Range {i+1}: {rule['min']} - {rule['max']} → {rule['state']}")
-                        elif table_type == "2:1_AND":
-                            rules = table_data["rules"][gender]
-                            # Handle matrix tables
-                            st.markdown("  *Matrix-based classification*")
-                        elif table_type == "4:1_MAXIMAL_OR":
-                            rules = table_data["rules"][gender]
-                            # Handle OR-based tables
-                            st.markdown("  *OR-based classification*")
-        
-        # Download button
-        st.download_button(
-            label="📄 Download Instances File",
-            data=instances_content,
-            file_name="ontology_instances.puml",
-            mime="text/plain",
-            key="download_instances_viewer"
-        )
+         with instances_tab:
+             st.markdown("#### 📊 Ontology Data Instances")
+             st.markdown("This file contains the actual data instances that populate your ontology with clinical knowledge.")
+             
+             # Instances breakdown
+             st.markdown("**🔍 Instance Components:**")
+             
+             # Extract and display all classification tables
+             classification_tables = kb_data.get("classification_tables", {})
+             
+             for table_name, table_data in classification_tables.items():
+                 table_type = table_data.get("type", "")
+                 table_display_name = table_name.replace("_", " ").title()
+                 
+                 if table_name == "hemoglobin_state":
+                     st.markdown("**🩸 Hemoglobin Ranges:**")
+                     for gender in ["female", "male"]:
+                         if gender in table_data.get("rules", {}):
+                             st.markdown(f"**{gender.title()}:**")
+                             rules = table_data["rules"][gender]["ranges"]
+                             for i, rule in enumerate(rules):
+                                 if rule.get("state"):
+                                     st.markdown(f"  - Range {i+1}: {rule['min']} - {rule['max']} → {rule['state']}")
+                 
+                 elif table_name == "hematological_state":
+                     st.markdown("**🩺 Hematological Matrix:**")
+                     for gender in ["female", "male"]:
+                         if gender in table_data.get("rules", {}):
+                             st.markdown(f"**{gender.title()}:**")
+                             rules = table_data["rules"][gender]
+                             hgb_parts = rules.get("hgb_partitions", [])
+                             wbc_parts = rules.get("wbc_partitions", [])
+                             matrix = rules.get("matrix", [])
+                             
+                             if matrix:
+                                 # Create a nice table display
+                                 matrix_data = []
+                                 for i, row in enumerate(matrix):
+                                     for j, cell in enumerate(row):
+                                         if cell:
+                                             matrix_data.append({
+                                                 "Hb Partition": hgb_parts[i] if i < len(hgb_parts) else "N/A",
+                                                 "WBC Partition": wbc_parts[j] if j < len(wbc_parts) else "N/A",
+                                                 "State": cell
+                                             })
+                                 
+                                 if matrix_data:
+                                     st.dataframe(matrix_data, use_container_width=True)
+                 
+                 elif table_name == "systemic_toxicity":
+                     st.markdown("**🌡️ Systemic Toxicity Rules (CCTG522):**")
+                     rules = table_data.get("rules", {})
+                     
+                     for symptom, symptom_rules in rules.items():
+                         st.markdown(f"**{symptom}:**")
+                         for i, rule in enumerate(symptom_rules):
+                             if "range" in rule:
+                                 st.markdown(f"  - Range {i+1}: {rule['range'][0]} - {rule['range'][1]} → {rule.get('grade', 'N/A')}")
+                             elif "value" in rule:
+                                 st.markdown(f"  - Value {i+1}: {rule['value']} → {rule.get('grade', 'N/A')}")
+                 
+                 else:
+                     # Handle new tables (like "sugar-level")
+                     st.markdown(f"**📊 {table_display_name} ({table_type}):**")
+                     for gender in ["female", "male"]:
+                         if gender in table_data.get("rules", {}):
+                             st.markdown(f"**{gender.title()}:**")
+                             if table_type == "1:1":
+                                 rules = table_data["rules"][gender]["ranges"]
+                                 for i, rule in enumerate(rules):
+                                     if rule.get("state"):
+                                         st.markdown(f"  - Range {i+1}: {rule['min']} - {rule['max']} → {rule['state']}")
+                             elif table_type == "2:1_AND":
+                                 rules = table_data["rules"][gender]
+                                 # Handle matrix tables
+                                 st.markdown("  *Matrix-based classification*")
+                             elif table_type == "4:1_MAXIMAL_OR":
+                                 rules = table_data["rules"][gender]
+                                 # Handle OR-based tables
+                                 st.markdown("  *OR-based classification*")
+             
+             # Now display the actual instances file content
+             st.markdown("---")
+             st.markdown("**📄 Instances File Content:**")
+             
+             with open("ontology_instances.puml", "r", encoding="utf-8") as f:
+                 instances_content = f.read()
+             
+             # Display instances with syntax highlighting
+             st.code(instances_content, language="plantuml")
+             
+             # Download button
+             st.download_button(
+                 label="📄 Download Instances File",
+                 data=instances_content,
+                 file_name="ontology_instances.puml",
+                 mime="text/plain",
+                 key="download_instances_viewer"
+             )
     
     with summary_tab:
         st.markdown("#### 📋 Ontology Summary")
@@ -1409,6 +1684,196 @@ def render_ontology_viewer(kb_data):
                 else:
                     st.warning("Files not available for download")
 
+def render_inference_engine(kb_data):
+    """Render the ontology inference engine interface."""
+    st.markdown("### 🤖 Ontology Inference Engine")
+    st.info("Perform formal inference using your ontology to derive patient states and treatment recommendations.")
+    
+    # Initialize inference engine
+    inference_engine = OntologyInferenceEngine(kb_data)
+    
+    # Create tabs for different inference modes
+    inference_tab, batch_tab, explain_tab = st.tabs([
+        "🔍 Single Patient Inference", 
+        "📊 Batch Inference", 
+        "📝 Inference Explanation"
+    ])
+    
+    with inference_tab:
+        st.markdown("#### Single Patient Inference")
+        
+        # Patient data input form
+        with st.form("patient_inference_form"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                patient_id = st.text_input("Patient ID", value="P001")
+                gender = st.selectbox("Gender", ["male", "female"])
+                hemoglobin = st.number_input("Hemoglobin (g/dL)", min_value=0.0, max_value=30.0, value=12.0, step=0.1)
+                wbc = st.number_input("WBC (K/μL)", min_value=0.0, max_value=100.0, value=5.0, step=0.1)
+                fever = st.number_input("Fever (°C)", min_value=35.0, max_value=45.0, value=37.0, step=0.1)
+            
+            with col2:
+                chills = st.selectbox("Chills", ["No", "Yes"])
+                skin_look = st.selectbox("Skin Look", ["Normal", "Pale", "Jaundiced"])
+                allergic_state = st.selectbox("Allergic State", ["No", "Yes"])
+                therapy = st.selectbox("Therapy", ["CCTG522", "Other"])
+            
+            submitted = st.form_submit_button("🚀 Run Inference", type="primary")
+        
+        if submitted:
+            # Prepare patient data
+            patient_data = {
+                "patient_id": patient_id,
+                "gender": gender,
+                "hemoglobin": hemoglobin,
+                "wbc": wbc,
+                "fever": fever,
+                "chills": chills,
+                "skin_look": skin_look,
+                "allergic_state": allergic_state,
+                "therapy": therapy
+            }
+            
+            # Run inference
+            with st.spinner("Running ontology inference..."):
+                results = inference_engine.infer_patient_states(patient_data)
+            
+            # Display results
+            st.success("✅ Inference completed successfully!")
+            
+            # Show inferred states
+            st.markdown("#### 🏥 Inferred States")
+            if results["inferred_states"]:
+                for state_type, state_value in results["inferred_states"].items():
+                    st.info(f"**{state_type.replace('_', ' ').title()}**: {state_value}")
+            else:
+                st.warning("No states could be inferred from the provided data.")
+            
+            # Show treatment recommendations
+            st.markdown("#### 💊 Treatment Recommendations")
+            if results["treatment_recommendations"]:
+                for rec in results["treatment_recommendations"]:
+                    priority_color = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(rec["priority"], "⚪")
+                    st.markdown(f"{priority_color} **{rec['priority'].title()} Priority**: {rec['recommendation']}")
+            else:
+                st.info("No treatment recommendations based on current states.")
+            
+            # Show reasoning chain
+            with st.expander("🔍 View Reasoning Chain"):
+                for i, step in enumerate(results["reasoning_chain"], 1):
+                    st.markdown(f"**Step {i}**: {step['type'].title()} Reasoning")
+                    st.markdown(f"- **Rule**: {step['rule']}")
+                    st.markdown(f"- **Input**: {step['input']}")
+                    st.markdown(f"- **Output**: {step['output']}")
+                    st.markdown(f"- **Confidence**: {step['confidence']:.2f}")
+                    st.markdown("---")
+    
+    with batch_tab:
+        st.markdown("#### Batch Inference")
+        st.info("Upload a CSV file with multiple patients for batch inference.")
+        
+        uploaded_file = st.file_uploader(
+            "Upload patient data CSV", 
+            type=['csv'],
+            help="CSV should have columns: patient_id,gender,hemoglobin,wbc,fever,chills,skin_look,allergic_state,therapy"
+        )
+        
+        if uploaded_file is not None:
+            import pandas as pd
+            
+            try:
+                df = pd.read_csv(uploaded_file)
+                st.success(f"✅ Loaded {len(df)} patients")
+                
+                if st.button("🚀 Run Batch Inference", type="primary"):
+                    results_list = []
+                    
+                    with st.spinner(f"Processing {len(df)} patients..."):
+                        for _, row in df.iterrows():
+                            patient_data = row.to_dict()
+                            results = inference_engine.infer_patient_states(patient_data)
+                            results_list.append(results)
+                    
+                    # Display batch results
+                    st.success(f"✅ Batch inference completed for {len(results_list)} patients")
+                    
+                    # Create summary dataframe
+                    summary_data = []
+                    for result in results_list:
+                        summary_data.append({
+                            "Patient ID": result["patient_id"],
+                            "Hemoglobin State": result["inferred_states"].get("hemoglobin_state", "N/A"),
+                            "Hematological State": result["inferred_states"].get("hematological_state", "N/A"),
+                            "Systemic Toxicity": result["inferred_states"].get("systemic_toxicity", "N/A"),
+                            "Treatment Count": len(result["treatment_recommendations"]),
+                            "Avg Confidence": sum(result["confidence_scores"].values()) / len(result["confidence_scores"]) if result["confidence_scores"] else 0
+                        })
+                    
+                    summary_df = pd.DataFrame(summary_data)
+                    st.dataframe(summary_df)
+                    
+                    # Download results
+                    csv = summary_df.to_csv(index=False)
+                    st.download_button(
+                        label="📥 Download Batch Results",
+                        data=csv,
+                        file_name="batch_inference_results.csv",
+                        mime="text/csv"
+                    )
+            
+            except Exception as e:
+                st.error(f"Error processing CSV: {e}")
+    
+    with explain_tab:
+        st.markdown("#### Inference Explanation")
+        st.info("Understand how the ontology inference engine works and what knowledge is being applied.")
+        
+        # Show ontology structure
+        st.markdown("**🏗️ Ontology Structure Used for Inference:**")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**Declarative Knowledge:**")
+            st.markdown("- Hemoglobin State Classification (1:1)")
+            st.markdown("- Hematological State Classification (2:1 AND)")
+            st.markdown("- Systemic Toxicity Classification (4:1 MAXIMAL OR)")
+        
+        with col2:
+            st.markdown("**Procedural Knowledge:**")
+            st.markdown("- Treatment Recommendation Rules")
+            st.markdown("- Temporal Validity Periods")
+            st.markdown("- Confidence Scoring")
+        
+        # Show inference process
+        st.markdown("**🔄 Inference Process:**")
+        st.markdown("1. **Observation Processing**: Raw patient data is validated")
+        st.markdown("2. **Declarative Inference**: States are classified using rules")
+        st.markdown("3. **Procedural Inference**: Treatment recommendations are generated")
+        st.markdown("4. **Temporal Reasoning**: Validity periods are applied")
+        st.markdown("5. **Confidence Scoring**: Reliability of inferences is assessed")
+        
+        # Show example
+        st.markdown("**📝 Example Inference:**")
+        example_data = {
+            "patient_id": "EXAMPLE",
+            "gender": "female",
+            "hemoglobin": 9.5,
+            "wbc": 3.2,
+            "fever": 38.5,
+            "chills": "Yes",
+            "skin_look": "Normal",
+            "allergic_state": "No",
+            "therapy": "CCTG522"
+        }
+        
+        if st.button("🔍 Run Example Inference"):
+            explanation = inference_engine.explain_inference(example_data)
+            
+            st.markdown("**Example Results:**")
+            st.json(explanation)
+
 def render_kb_editor():
     """Main function to render the complete Knowledge Base Editor."""
     st.markdown("""
@@ -1442,13 +1907,14 @@ def render_kb_editor():
         return
     
     # Create tabs for different sections
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "📊 Classification Tables", 
         "🏥 Treatment Rules", 
         "⏰ Validity Periods",
         "📁 File Management",
         "📋 Overview",
-        "🔗 Ontology Viewer"
+        "🔗 Ontology Viewer",
+        "🤖 Inference Engine"
     ])
     
     with tab1:
@@ -1469,6 +1935,9 @@ def render_kb_editor():
     with tab6:
         render_ontology_viewer(kb_data)
     
+    with tab7:
+        render_inference_engine(kb_data)
+    
     # Status information
     st.markdown("---")
     st.markdown("""
@@ -1479,6 +1948,7 @@ def render_kb_editor():
     - **File Management**: Import/export complete knowledge bases and sync ontology files
     - **Overview**: Get a summary of your entire knowledge base
     - **Ontology Viewer**: View and manage your PlantUML ontology files with organized components
+    - **Inference Engine**: Perform formal inference using your ontology to derive patient states and treatments
     
     All changes are saved automatically to `knowledge_base.json` and ontology files are auto-synchronized.
     """) 
