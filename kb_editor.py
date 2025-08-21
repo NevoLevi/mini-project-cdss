@@ -1750,7 +1750,7 @@ def render_inference_engine(kb_data):
     
     with db_tab:
         st.markdown("#### Database Patient Selection")
-        st.info("Select a patient from the database for a specific date to run inference.")
+        st.info("Select a patient and then choose a date to run inference on their data.")
         
         try:
             # Import the database module
@@ -1759,51 +1759,137 @@ def render_inference_engine(kb_data):
             # Initialize database
             db = CleanCDSSDatabase()
             
-            # Date selection
-            st.markdown("**📅 Select Date:**")
-            selected_date = st.date_input(
-                "Choose a date",
-                value=datetime.now().date(),
-                help="Select the date for which you want to analyze patient data"
+            # Get all unique patients from both lab results and clinical observations
+            all_patients = set()
+            
+            # Add patients from lab results
+            if db.lab_results_df is not None:
+                lab_patients = db.lab_results_df['Patient_ID'].unique()
+                all_patients.update(lab_patients)
+            
+            # Add patients from clinical observations
+            if db.clinical_obs_df is not None:
+                clinical_patients = db.clinical_obs_df['Patient_ID'].unique()
+                all_patients.update(clinical_patients)
+            
+            # Convert to sorted list
+            all_patients = sorted(list(all_patients))
+            
+            if not all_patients:
+                st.warning("⚠️ No patients found in the database.")
+                return
+            
+            st.success(f"✅ Found {len(all_patients)} patients in the database")
+            
+            # Step 1: Patient Selection
+            st.markdown("**👤 Step 1: Select Patient**")
+            selected_patient = st.selectbox(
+                "Choose a patient:",
+                all_patients,
+                help="Select a patient to analyze"
             )
             
-            if st.button("🔍 Load Patients for Selected Date", type="primary"):
-                # Get patients with data on the selected date
-                patients_with_data = []
+            if selected_patient:
+                # Step 2: Get all available dates for the selected patient
+                st.markdown("**📅 Step 2: Select Date**")
                 
-                # Convert date to datetime for comparison
-                selected_datetime = datetime.combine(selected_date, datetime.min.time())
+                available_dates = set()
                 
-                # Check lab results for the selected date
-                lab_data = db.lab_results_df
-                if lab_data is not None:
-                    lab_patients = lab_data[
-                        lab_data['Transaction_Time'].dt.date == selected_date
-                    ]['Patient_ID'].unique()
-                    patients_with_data.extend(lab_patients)
+                # Get dates from lab results
+                if db.lab_results_df is not None:
+                    patient_lab_dates = db.lab_results_df[
+                        db.lab_results_df['Patient_ID'] == selected_patient
+                    ]['Transaction_Time'].dt.date.unique()
+                    available_dates.update(patient_lab_dates)
                 
-                # Check clinical observations for the selected date
-                clinical_data = db.clinical_obs_df
-                if clinical_data is not None:
-                    clinical_patients = clinical_data[
-                        clinical_data['Observation_Date'].dt.date == selected_date
-                    ]['Patient_ID'].unique()
-                    patients_with_data.extend(clinical_patients)
+                # Get dates from clinical observations
+                if db.clinical_obs_df is not None:
+                    patient_clinical_dates = db.clinical_obs_df[
+                        db.clinical_obs_df['Patient_ID'] == selected_patient
+                    ]['Observation_Date'].dt.date.unique()
+                    available_dates.update(patient_clinical_dates)
                 
-                # Remove duplicates
-                patients_with_data = list(set(patients_with_data))
+                # Convert to sorted list
+                available_dates = sorted(list(available_dates))
                 
-                if patients_with_data:
-                    st.success(f"✅ Found {len(patients_with_data)} patients with data on {selected_date}")
+                if not available_dates:
+                    st.warning(f"⚠️ No data found for patient {selected_patient}")
+                    return
+                
+                st.info(f"📊 Patient {selected_patient} has data on {len(available_dates)} different dates")
+                
+                # Date selection
+                selected_date = st.selectbox(
+                    "Choose a date:",
+                    available_dates,
+                    help="Select a date to run inference on"
+                )
+                
+                if selected_date:
+                    # Step 3: Show data summary and run inference
+                    st.markdown("**🔍 Step 3: Data Summary & Inference**")
                     
-                    # Patient selection
-                    selected_patient = st.selectbox(
-                        "Select Patient:",
-                        patients_with_data,
-                        help="Choose a patient to run inference on"
-                    )
+                    # Show what data is available for this patient on this date
+                    st.markdown("**📋 Available Data Summary:**")
                     
-                    if selected_patient and st.button("🚀 Run Inference on Selected Patient", type="primary"):
+                    data_summary = {
+                        "Patient ID": selected_patient,
+                        "Selected Date": selected_date,
+                        "Lab Results": 0,
+                        "Clinical Observations": 0
+                    }
+                    
+                    # Count lab results
+                    if db.lab_results_df is not None:
+                        lab_count = len(db.lab_results_df[
+                            (db.lab_results_df['Patient_ID'] == selected_patient) &
+                            (db.lab_results_df['Transaction_Time'].dt.date == selected_date)
+                        ])
+                        data_summary["Lab Results"] = lab_count
+                    
+                    # Count clinical observations
+                    if db.clinical_obs_df is not None:
+                        clinical_count = len(db.clinical_obs_df[
+                            (db.clinical_obs_df['Patient_ID'] == selected_patient) &
+                            (db.clinical_obs_df['Observation_Date'].dt.date == selected_date)
+                        ])
+                        data_summary["Clinical Observations"] = clinical_count
+                    
+                    # Display summary
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Lab Results", data_summary["Lab Results"])
+                    with col2:
+                        st.metric("Clinical Observations", data_summary["Clinical Observations"])
+                    with col3:
+                        st.metric("Total Data Points", data_summary["Lab Results"] + data_summary["Clinical Observations"])
+                    
+                    # Show detailed data preview
+                    with st.expander("📊 View Available Data Details"):
+                        st.markdown("**Lab Results:**")
+                        if db.lab_results_df is not None:
+                            patient_lab_data = db.lab_results_df[
+                                (db.lab_results_df['Patient_ID'] == selected_patient) &
+                                (db.lab_results_df['Transaction_Time'].dt.date == selected_date)
+                            ]
+                            if not patient_lab_data.empty:
+                                st.dataframe(patient_lab_data[['LOINC_Code', 'Value', 'Unit', 'Transaction_Time']])
+                            else:
+                                st.info("No lab results for this date")
+                        
+                        st.markdown("**Clinical Observations:**")
+                        if db.clinical_obs_df is not None:
+                            patient_clinical_data = db.clinical_obs_df[
+                                (db.clinical_obs_df['Patient_ID'] == selected_patient) &
+                                (db.clinical_obs_df['Observation_Date'].dt.date == selected_date)
+                            ]
+                            if not patient_clinical_data.empty:
+                                st.dataframe(patient_clinical_data[['Observation_Type', 'Observation_Value', 'Observation_Date']])
+                            else:
+                                st.info("No clinical observations for this date")
+                    
+                    # Run inference button
+                    if st.button("🚀 Run Inference on Selected Patient & Date", type="primary"):
                         # Get patient data for the selected date
                         patient_data = {}
                         
@@ -1813,10 +1899,10 @@ def render_inference_engine(kb_data):
                             patient_data.update(demographics)
                         
                         # Get lab values for the selected date
-                        if lab_data is not None:
-                            patient_lab_data = lab_data[
-                                (lab_data['Patient_ID'] == selected_patient) &
-                                (lab_data['Transaction_Time'].dt.date == selected_date)
+                        if db.lab_results_df is not None:
+                            patient_lab_data = db.lab_results_df[
+                                (db.lab_results_df['Patient_ID'] == selected_patient) &
+                                (db.lab_results_df['Transaction_Time'].dt.date == selected_date)
                             ]
                             
                             for _, lab_row in patient_lab_data.iterrows():
@@ -1830,10 +1916,10 @@ def render_inference_engine(kb_data):
                                     patient_data['wbc'] = float(value)
                         
                         # Get clinical observations for the selected date
-                        if clinical_data is not None:
-                            patient_clinical_data = clinical_data[
-                                (clinical_data['Patient_ID'] == selected_patient) &
-                                (clinical_data['Observation_Date'].dt.date == selected_date)
+                        if db.clinical_obs_df is not None:
+                            patient_clinical_data = db.clinical_obs_df[
+                                (db.clinical_obs_df['Patient_ID'] == selected_patient) &
+                                (db.clinical_obs_df['Observation_Date'].dt.date == selected_date)
                             ]
                             
                             for _, clinical_row in patient_clinical_data.iterrows():
@@ -1906,8 +1992,6 @@ def render_inference_engine(kb_data):
                                 st.markdown(f"- **Input**: {step['input']}")
                                 st.markdown(f"- **Output**: {step['output']}")
                                 st.markdown("---")
-                else:
-                    st.warning(f"⚠️ No patients found with data on {selected_date}")
                     
         except ImportError:
             st.error("❌ Database module not available. Please ensure cdss_clean.py is in the same directory.")
