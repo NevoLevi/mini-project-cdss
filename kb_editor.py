@@ -1150,6 +1150,9 @@ def render_ontology_viewer(kb_data):
         # Get all classification tables to build dynamic lists
         classification_tables = kb_data.get("classification_tables", {})
         
+        # Debug: Show what tables are found
+        st.info(f"📊 Found {len(classification_tables)} classification tables: {list(classification_tables.keys())}")
+        
         # Build observation types list
         observation_types = []
         for table_name in classification_tables.keys():
@@ -1183,6 +1186,15 @@ def render_ontology_viewer(kb_data):
                 # For new tables like "sugar-level"
                 state_name = table_name.replace("_", "").title() + "State"
                 state_types.append(f"`{state_name}`")
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_state_types = []
+        for state_type in state_types:
+            if state_type not in seen:
+                seen.add(state_type)
+                unique_state_types.append(state_type)
+        state_types = unique_state_types
         
         with col1:
             st.markdown(f"""
