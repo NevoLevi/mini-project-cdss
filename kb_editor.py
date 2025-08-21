@@ -222,7 +222,8 @@ class OntologyInferenceEngine:
         wbc_idx = self._find_partition_index(wbc, wbc_bins)
         
         if hgb_idx is not None and wbc_idx is not None:
-            return matrix[hgb_idx][wbc_idx]
+            # Matrix is structured as [wbc_idx][hgb_idx] - WBC rows, HGB columns
+            return matrix[wbc_idx][hgb_idx]
         return None
     
     def _infer_systemic_toxicity(self, patient_data):
