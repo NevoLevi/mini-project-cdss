@@ -110,18 +110,18 @@ MATRIX_female_0_0 --> Pancytopenia : mapsTo
 object MATRIX_female_0_1 <<MatrixCell>> { label = "Cell female Hb0xWBC1" }
 MATRIX_female_0_1 --> HGBpart_female_0 : hgbPartition
 MATRIX_female_0_1 --> WBCpart_female_1 : wbcPartition
-MATRIX_female_0_1 -->  Leukopenia : mapsTo
+MATRIX_female_0_1 --> Anemia : mapsTo
 
 object MATRIX_female_0_2 <<MatrixCell>> { label = "Cell female Hb0xWBC2" }
 MATRIX_female_0_2 --> HGBpart_female_0 : hgbPartition
 MATRIX_female_0_2 --> WBCpart_female_2 : wbcPartition
-MATRIX_female_0_2 -->  Suspected_Polycytemia_Vera : mapsTo
+MATRIX_female_0_2 --> Suspected_Leukemia : mapsTo
 
 ' Row 1
 object MATRIX_female_1_0 <<MatrixCell>> { label = "Cell female Hb1xWBC0" }
 MATRIX_female_1_0 --> HGBpart_female_1 : hgbPartition
 MATRIX_female_1_0 --> WBCpart_female_0 : wbcPartition
-MATRIX_female_1_0 --> Anemia : mapsTo
+MATRIX_female_1_0 --> Leukopenia : mapsTo
 
 object MATRIX_female_1_1 <<MatrixCell>> { label = "Cell female Hb1xWBC1" }
 MATRIX_female_1_1 --> HGBpart_female_1 : hgbPartition
@@ -137,7 +137,7 @@ MATRIX_female_1_2 --> Leukemoid_reaction : mapsTo
 object MATRIX_female_2_0 <<MatrixCell>> { label = "Cell female Hb2xWBC0" }
 MATRIX_female_2_0 --> HGBpart_female_2 : hgbPartition
 MATRIX_female_2_0 --> WBCpart_female_0 : wbcPartition
-MATRIX_female_2_0 --> Suspected_Leukemia : mapsTo
+MATRIX_female_2_0 --> Suspected_Polycytemia_Vera : mapsTo
 
 object MATRIX_female_2_1 <<MatrixCell>> { label = "Cell female Hb2xWBC1" }
 MATRIX_female_2_1 --> HGBpart_female_2 : hgbPartition
@@ -169,18 +169,18 @@ MATRIX_male_0_0 --> Pancytopenia : mapsTo
 object MATRIX_male_0_1 <<MatrixCell>> { label = "Cell male Hb0xWBC1" }
 MATRIX_male_0_1 --> HGBpart_male_0 : hgbPartition
 MATRIX_male_0_1 --> WBCpart_male_1 : wbcPartition
-MATRIX_male_0_1 --> Leukopenia : mapsTo
+MATRIX_male_0_1 --> Anemia : mapsTo
 
 object MATRIX_male_0_2 <<MatrixCell>> { label = "Cell male Hb0xWBC2" }
 MATRIX_male_0_2 --> HGBpart_male_0 : hgbPartition
 MATRIX_male_0_2 --> WBCpart_male_2 : wbcPartition
-MATRIX_male_0_2 --> Suspected_Polycytemia_Vera : mapsTo
+MATRIX_male_0_2 --> Suspected_Leukemia : mapsTo
 
 ' Row 1
 object MATRIX_male_1_0 <<MatrixCell>> { label = "Cell male Hb1xWBC0" }
 MATRIX_male_1_0 --> HGBpart_male_1 : hgbPartition
 MATRIX_male_1_0 --> WBCpart_male_0 : wbcPartition
-MATRIX_male_1_0 --> Anemia : mapsTo
+MATRIX_male_1_0 --> Leukopenia : mapsTo
 
 object MATRIX_male_1_1 <<MatrixCell>> { label = "Cell male Hb1xWBC1" }
 MATRIX_male_1_1 --> HGBpart_male_1 : hgbPartition
@@ -190,18 +190,18 @@ MATRIX_male_1_1 --> Normal : mapsTo
 object MATRIX_male_1_2 <<MatrixCell>> { label = "Cell male Hb1xWBC2" }
 MATRIX_male_1_2 --> HGBpart_male_1 : hgbPartition
 MATRIX_male_1_2 --> WBCpart_male_2 : wbcPartition
-MATRIX_male_1_2 --> Polyhemia : mapsTo
+MATRIX_male_1_2 --> Leukemoid_reaction : mapsTo
 
 ' Row 2
 object MATRIX_male_2_0 <<MatrixCell>> { label = "Cell male Hb2xWBC0" }
 MATRIX_male_2_0 --> HGBpart_male_2 : hgbPartition
 MATRIX_male_2_0 --> WBCpart_male_0 : wbcPartition
-MATRIX_male_2_0 --> Suspected_Leukemia : mapsTo
+MATRIX_male_2_0 --> Suspected_Polycytemia_Vera : mapsTo
 
 object MATRIX_male_2_1 <<MatrixCell>> { label = "Cell male Hb2xWBC1" }
 MATRIX_male_2_1 --> HGBpart_male_2 : hgbPartition
 MATRIX_male_2_1 --> WBCpart_male_1 : wbcPartition
-MATRIX_male_2_1 --> Leukemoid_reaction : mapsTo
+MATRIX_male_2_1 --> Polyhemia : mapsTo
 
 object MATRIX_male_2_2 <<MatrixCell>> { label = "Cell male Hb2xWBC2" }
 MATRIX_male_2_2 --> HGBpart_male_2 : hgbPartition
