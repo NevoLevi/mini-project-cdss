@@ -1400,104 +1400,104 @@ def render_ontology_viewer(kb_data):
         "📋 Summary"
     ])
     
-     with schema_tab:
-         st.markdown("#### 🏗️ Ontology Schema Structure")
-         st.markdown("This file defines the conceptual structure and relationships of your clinical decision support system.")
-         
-         # Schema components breakdown - Dynamic based on KB tables
-         st.markdown("**🔍 Schema Components:**")
-         col1, col2 = st.columns(2)
-         
-         # Get all classification tables to build dynamic lists
-         classification_tables = kb_data.get("classification_tables", {})
-         
-         # Debug: Show what tables are found
-         st.info(f"📊 Found {len(classification_tables)} classification tables: {list(classification_tables.keys())}")
-         
-         # Build observation types list
-         observation_types = []
-         for table_name in classification_tables.keys():
-             if table_name == "hemoglobin_state":
-                 observation_types.append("`HemoglobinObservation`")
-             elif table_name == "hematological_state":
-                 observation_types.append("`WBCObservation`")
-             elif table_name == "systemic_toxicity":
-                 observation_types.extend([
-                     "`FeverObservation`",
-                     "`ChillsObservation`",
-                     "`SkinLookObservation`",
-                     "`AllergicStateObservation`",
-                     "`TherapyStatusObservation`"
-                 ])
-             else:
-                 # For new tables like "sugar-level"
-                 observation_name = table_name.replace("_", "").title() + "Observation"
-                 observation_types.append(f"`{observation_name}`")
-         
-         # Build state types list
-         state_types = []
-         for table_name in classification_tables.keys():
-             if table_name == "hemoglobin_state":
-                 state_types.append("`HemoglobinState`")
-             elif table_name == "hematological_state":
-                 state_types.append("`HematologicalState`")
-             elif table_name == "systemic_toxicity":
-                 state_types.append("`SystemicToxicityGrade`")
-             else:
-                 # For new tables like "sugar-level"
-                 state_name = table_name.replace("_", "").title() + "State"
-                 state_types.append(f"`{state_name}`")
-         
-         # Remove duplicates while preserving order
-         seen = set()
-         unique_state_types = []
-         for state_type in state_types:
-             if state_type not in seen:
-                 seen.add(state_type)
-                 unique_state_types.append(state_type)
-         state_types = unique_state_types
-         
-         with col1:
-             st.markdown("**Core Classes:**")
-             st.markdown("- `Patient` - Patient information")
-             st.markdown("- `Observation` - Abstract base for all observations")
-             st.markdown("- `State` - Abstract base for all states")
-             st.markdown("")
-             st.markdown("**Observation Types:**")
-             for obs_type in observation_types:
-                 st.markdown(f"- {obs_type}")
-         
-         with col2:
-             st.markdown("**State Types:**")
-             for state_type in state_types:
-                 st.markdown(f"- {state_type}")
-             st.markdown("")
-             st.markdown("**Rule Classes:**")
-             st.markdown("- `RangeSpec` - Value ranges with thresholds")
-             st.markdown("- `Partition` - Value partitions")
-             st.markdown("- `MatrixCell` - Decision matrix cells")
-             st.markdown("- `SymptomToGradeRule` - Symptom to grade mapping")
-         
-         # Now display the actual schema file content
-         st.markdown("---")
-         st.markdown("**📄 Schema File Content:**")
-         
-         with open("ontology_schema.puml", "r", encoding="utf-8") as f:
-             schema_content = f.read()
-         
-         # Display schema with syntax highlighting
-         st.code(schema_content, language="plantuml")
-         
-         # Download button
-         st.download_button(
-             label="📄 Download Schema File",
-             data=schema_content,
-             file_name="ontology_schema.puml",
-             mime="text/plain",
-             key="download_schema_viewer"
-         )
+    with schema_tab:
+        st.markdown("#### 🏗️ Ontology Schema Structure")
+        st.markdown("This file defines the conceptual structure and relationships of your clinical decision support system.")
+        
+        # Schema components breakdown - Dynamic based on KB tables
+        st.markdown("**🔍 Schema Components:**")
+        col1, col2 = st.columns(2)
+        
+        # Get all classification tables to build dynamic lists
+        classification_tables = kb_data.get("classification_tables", {})
+        
+        # Debug: Show what tables are found
+        st.info(f"📊 Found {len(classification_tables)} classification tables: {list(classification_tables.keys())}")
+        
+        # Build observation types list
+        observation_types = []
+        for table_name in classification_tables.keys():
+            if table_name == "hemoglobin_state":
+                observation_types.append("`HemoglobinObservation`")
+            elif table_name == "hematological_state":
+                observation_types.append("`WBCObservation`")
+            elif table_name == "systemic_toxicity":
+                observation_types.extend([
+                    "`FeverObservation`",
+                    "`ChillsObservation`",
+                    "`SkinLookObservation`",
+                    "`AllergicStateObservation`",
+                    "`TherapyStatusObservation`"
+                ])
+            else:
+                # For new tables like "sugar-level"
+                observation_name = table_name.replace("_", "").title() + "Observation"
+                observation_types.append(f"`{observation_name}`")
+        
+        # Build state types list
+        state_types = []
+        for table_name in classification_tables.keys():
+            if table_name == "hemoglobin_state":
+                state_types.append("`HemoglobinState`")
+            elif table_name == "hematological_state":
+                state_types.append("`HematologicalState`")
+            elif table_name == "systemic_toxicity":
+                state_types.append("`SystemicToxicityGrade`")
+            else:
+                # For new tables like "sugar-level"
+                state_name = table_name.replace("_", "").title() + "State"
+                state_types.append(f"`{state_name}`")
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_state_types = []
+        for state_type in state_types:
+            if state_type not in seen:
+                seen.add(state_type)
+                unique_state_types.append(state_type)
+        state_types = unique_state_types
+        
+        with col1:
+            st.markdown("**Core Classes:**")
+            st.markdown("- `Patient` - Patient information")
+            st.markdown("- `Observation` - Abstract base for all observations")
+            st.markdown("- `State` - Abstract base for all states")
+            st.markdown("")
+            st.markdown("**Observation Types:**")
+            for obs_type in observation_types:
+                st.markdown(f"- {obs_type}")
+        
+        with col2:
+            st.markdown("**State Types:**")
+            for state_type in state_types:
+                st.markdown(f"- {state_type}")
+            st.markdown("")
+            st.markdown("**Rule Classes:**")
+            st.markdown("- `RangeSpec` - Value ranges with thresholds")
+            st.markdown("- `Partition` - Value partitions")
+            st.markdown("- `MatrixCell` - Decision matrix cells")
+            st.markdown("- `SymptomToGradeRule` - Symptom to grade mapping")
+        
+        # Now display the actual schema file content
+        st.markdown("---")
+        st.markdown("**📄 Schema File Content:**")
+        
+        with open("ontology_schema.puml", "r", encoding="utf-8") as f:
+            schema_content = f.read()
+        
+        # Display schema with syntax highlighting
+        st.code(schema_content, language="plantuml")
+        
+        # Download button
+        st.download_button(
+            label="📄 Download Schema File",
+            data=schema_content,
+            file_name="ontology_schema.puml",
+            mime="text/plain",
+            key="download_schema_viewer"
+        )
     
-         with instances_tab:
+    with instances_tab:
              st.markdown("#### 📊 Ontology Data Instances")
              st.markdown("This file contains the actual data instances that populate your ontology with clinical knowledge.")
              
