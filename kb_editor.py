@@ -1673,14 +1673,56 @@ def render_inference_engine(kb_data):
     inference_engine = OntologyInferenceEngine(kb_data)
     
     # Create tabs for different inference modes
-    inference_tab, db_tab, explain_tab = st.tabs([
+    inference_tab, explain_tab = st.tabs([
         "🔍 Single Patient Inference", 
-        "🗄️ Database Patient Selection", 
         "📝 Inference Explanation"
     ])
     
     with inference_tab:
         st.markdown("#### Single Patient Inference")
+        
+        # Get unique values from database for dropdowns
+        chills_options = ["None", "Shaking", "Rigor"]
+        skin_look_options = ["Erythema", "Vesiculation", "Desquamation", "Exfoliation"]
+        allergic_state_options = ["Edema", "Bronchospasm", "Severe-Bronchospasm", "Anaphylactic-Shock"]
+        therapy_options = ["CCTG522", "Other"]
+        
+        try:
+            from cdss_clean import CleanCDSSDatabase
+            db = CleanCDSSDatabase()
+            
+            # Get unique values from clinical observations
+            if db.clinical_obs_df is not None:
+                # Get unique chills values
+                chills_values = db.clinical_obs_df[
+                    db.clinical_obs_df['Observation_Type'] == 'Chills'
+                ]['Observation_Value'].unique()
+                if len(chills_values) > 0:
+                    chills_options = sorted(list(chills_values))
+                
+                # Get unique skin appearance values
+                skin_values = db.clinical_obs_df[
+                    db.clinical_obs_df['Observation_Type'] == 'Skin_Appearance'
+                ]['Observation_Value'].unique()
+                if len(skin_values) > 0:
+                    skin_look_options = sorted(list(skin_values))
+                
+                # Get unique allergic reaction values
+                allergic_values = db.clinical_obs_df[
+                    db.clinical_obs_df['Observation_Type'] == 'Allergic_Reaction'
+                ]['Observation_Value'].unique()
+                if len(allergic_values) > 0:
+                    allergic_state_options = sorted(list(allergic_values))
+                
+                # Get unique therapy status values
+                therapy_values = db.clinical_obs_df[
+                    db.clinical_obs_df['Observation_Type'] == 'Therapy_Status'
+                ]['Observation_Value'].unique()
+                if len(therapy_values) > 0:
+                    therapy_options = sorted(list(therapy_values))
+                    
+        except Exception as e:
+            st.warning(f"⚠️ Could not load database values for dropdowns: {e}")
         
         # Patient data input form
         with st.form("patient_inference_form"):
@@ -1694,10 +1736,10 @@ def render_inference_engine(kb_data):
                 fever = st.number_input("Fever (°C)", min_value=35.0, max_value=45.0, value=37.0, step=0.1)
             
             with col2:
-                chills = st.selectbox("Chills", ["No", "Yes"])
-                skin_look = st.selectbox("Skin Look", ["Normal", "Pale", "Jaundiced"])
-                allergic_state = st.selectbox("Allergic State", ["No", "Yes"])
-                therapy = st.selectbox("Therapy", ["CCTG522", "Other"])
+                chills = st.selectbox("Chills", chills_options)
+                skin_look = st.selectbox("Skin Look", skin_look_options)
+                allergic_state = st.selectbox("Allergic State", allergic_state_options)
+                therapy = st.selectbox("Therapy", therapy_options)
             
             submitted = st.form_submit_button("🚀 Run Inference", type="primary")
         
@@ -1747,312 +1789,6 @@ def render_inference_engine(kb_data):
                     st.markdown(f"- **Input**: {step['input']}")
                     st.markdown(f"- **Output**: {step['output']}")
                     st.markdown("---")
-    
-    with db_tab:
-        st.markdown("#### Database Patient Selection")
-        st.info("Select a patient and then choose a date to run inference on their data.")
-        
-        try:
-            # Import the database module
-            from cdss_clean import CleanCDSSDatabase
-            
-            # Initialize database
-            db = CleanCDSSDatabase()
-            
-            # Get all unique patients from both lab results and clinical observations
-            all_patients = set()
-            
-            # Add patients from lab results
-            if db.lab_results_df is not None:
-                lab_patients = db.lab_results_df['Patient_ID'].unique()
-                all_patients.update(lab_patients)
-            
-            # Add patients from clinical observations
-            if db.clinical_obs_df is not None:
-                clinical_patients = db.clinical_obs_df['Patient_ID'].unique()
-                all_patients.update(clinical_patients)
-            
-            # Convert to sorted list
-            all_patient_ids = sorted(list(all_patients))
-            
-            if not all_patient_ids:
-                st.warning("⚠️ No patients found in the database.")
-                return
-            
-            # Create patient name mapping
-            patient_name_mapping = {}
-            patient_age_mapping = {}
-            for patient_id in all_patient_ids:
-                demographics = db.get_patient_demographics(patient_id)
-                if demographics and demographics.get('Patient_Name'):
-                    patient_name = demographics['Patient_Name']
-                    patient_name_mapping[patient_id] = patient_name
-                    
-                    # Handle age (could be numpy int64)
-                    age = demographics.get('Age')
-                    if age is not None:
-                        # Convert numpy int64 to regular int if needed
-                        if hasattr(age, 'item'):
-                            age = age.item()
-                        patient_age_mapping[patient_id] = age
-                    else:
-                        patient_age_mapping[patient_id] = "Unknown"
-                else:
-                    # If no name available, use ID as fallback
-                    patient_name_mapping[patient_id] = f"Patient {patient_id}"
-                    patient_age_mapping[patient_id] = "Unknown"
-            
-            # Create display options with names and ages
-            patient_options = []
-            for patient_id in all_patient_ids:
-                patient_name = patient_name_mapping[patient_id]
-                age = patient_age_mapping[patient_id]
-                
-                # Handle patient ID (could be numpy int64)
-                display_id = patient_id
-                if hasattr(display_id, 'item'):
-                    display_id = display_id.item()
-                
-                if age != "Unknown":
-                    display_text = f"{patient_name} (ID: {display_id}, Age: {age})"
-                else:
-                    display_text = f"{patient_name} (ID: {display_id})"
-                patient_options.append((display_text, patient_id))
-            
-            st.success(f"✅ Found {len(all_patient_ids)} patients in the database")
-            
-            # Step 1: Patient Selection
-            st.markdown("**👤 Step 1: Select Patient**")
-            selected_patient_display = st.selectbox(
-                "Choose a patient:",
-                options=[option[0] for option in patient_options],
-                help="Select a patient to analyze"
-            )
-            
-            # Extract patient ID from selection
-            selected_patient = None
-            for display_text, patient_id in patient_options:
-                if display_text == selected_patient_display:
-                    selected_patient = patient_id
-                    break
-            
-            if selected_patient:
-                # Step 2: Get all available dates for the selected patient
-                st.markdown("**📅 Step 2: Select Date**")
-                
-                available_dates = set()
-                
-                # Get dates from lab results
-                if db.lab_results_df is not None:
-                    patient_lab_dates = db.lab_results_df[
-                        db.lab_results_df['Patient_ID'] == selected_patient
-                    ]['Transaction_Time'].dt.date.unique()
-                    available_dates.update(patient_lab_dates)
-                
-                # Get dates from clinical observations
-                if db.clinical_obs_df is not None:
-                    patient_clinical_dates = db.clinical_obs_df[
-                        db.clinical_obs_df['Patient_ID'] == selected_patient
-                    ]['Observation_Date'].dt.date.unique()
-                    available_dates.update(patient_clinical_dates)
-                
-                # Convert to sorted list
-                available_dates = sorted(list(available_dates))
-                
-                if not available_dates:
-                    patient_display_name = patient_name_mapping.get(selected_patient, selected_patient)
-                    st.warning(f"⚠️ No data found for patient {patient_display_name}")
-                    return
-                
-                patient_display_name = patient_name_mapping.get(selected_patient, selected_patient)
-                st.info(f"📊 Patient {patient_display_name} has data on {len(available_dates)} different dates")
-                
-                # Date selection
-                selected_date = st.selectbox(
-                    "Choose a date:",
-                    available_dates,
-                    help="Select a date to run inference on"
-                )
-                
-                if selected_date:
-                    # Step 3: Show data summary and run inference
-                    st.markdown("**🔍 Step 3: Data Summary & Inference**")
-                    
-                    # Show what data is available for this patient on this date
-                    st.markdown("**📋 Available Data Summary:**")
-                    
-                    # Handle patient ID display (could be numpy int64)
-                    display_patient_id = selected_patient
-                    if hasattr(display_patient_id, 'item'):
-                        display_patient_id = display_patient_id.item()
-                    
-                    data_summary = {
-                        "Patient Name": patient_name_mapping.get(selected_patient, selected_patient),
-                        "Patient ID": display_patient_id,
-                        "Age": patient_age_mapping.get(selected_patient, "Unknown"),
-                        "Selected Date": selected_date,
-                        "Lab Results": 0,
-                        "Clinical Observations": 0
-                    }
-                    
-                    # Count lab results
-                    if db.lab_results_df is not None:
-                        lab_count = len(db.lab_results_df[
-                            (db.lab_results_df['Patient_ID'] == selected_patient) &
-                            (db.lab_results_df['Transaction_Time'].dt.date == selected_date)
-                        ])
-                        data_summary["Lab Results"] = lab_count
-                    
-                    # Count clinical observations
-                    if db.clinical_obs_df is not None:
-                        clinical_count = len(db.clinical_obs_df[
-                            (db.clinical_obs_df['Patient_ID'] == selected_patient) &
-                            (db.clinical_obs_df['Observation_Date'].dt.date == selected_date)
-                        ])
-                        data_summary["Clinical Observations"] = clinical_count
-                    
-                    # Display summary
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric("Lab Results", data_summary["Lab Results"])
-                    with col2:
-                        st.metric("Clinical Observations", data_summary["Clinical Observations"])
-                    with col3:
-                        st.metric("Total Data Points", data_summary["Lab Results"] + data_summary["Clinical Observations"])
-                    
-                    # Show detailed data preview
-                    with st.expander("📊 View Available Data Details"):
-                        st.markdown("**Lab Results:**")
-                        if db.lab_results_df is not None:
-                            patient_lab_data = db.lab_results_df[
-                                (db.lab_results_df['Patient_ID'] == selected_patient) &
-                                (db.lab_results_df['Transaction_Time'].dt.date == selected_date)
-                            ]
-                            if not patient_lab_data.empty:
-                                st.dataframe(patient_lab_data[['LOINC_Code', 'Value', 'Unit', 'Transaction_Time']])
-                            else:
-                                st.info("No lab results for this date")
-                        
-                        st.markdown("**Clinical Observations:**")
-                        if db.clinical_obs_df is not None:
-                            patient_clinical_data = db.clinical_obs_df[
-                                (db.clinical_obs_df['Patient_ID'] == selected_patient) &
-                                (db.clinical_obs_df['Observation_Date'].dt.date == selected_date)
-                            ]
-                            if not patient_clinical_data.empty:
-                                st.dataframe(patient_clinical_data[['Observation_Type', 'Observation_Value', 'Observation_Date']])
-                            else:
-                                st.info("No clinical observations for this date")
-                    
-                    # Run inference button
-                    if st.button("🚀 Run Inference on Selected Patient & Date", type="primary"):
-                        # Get patient data for the selected date
-                        patient_data = {}
-                        
-                        # Get demographic data
-                        demographics = db.get_patient_demographics(selected_patient)
-                        if demographics:
-                            patient_data.update(demographics)
-                        
-                        # Get lab values for the selected date
-                        if db.lab_results_df is not None:
-                            patient_lab_data = db.lab_results_df[
-                                (db.lab_results_df['Patient_ID'] == selected_patient) &
-                                (db.lab_results_df['Transaction_Time'].dt.date == selected_date)
-                            ]
-                            
-                            for _, lab_row in patient_lab_data.iterrows():
-                                loinc_code = lab_row['LOINC_Code']
-                                value = lab_row['Value']
-                                
-                                # Map LOINC codes to our expected fields
-                                if loinc_code == "30313-1":  # Hemoglobin
-                                    patient_data['hemoglobin'] = float(value)
-                                elif loinc_code == "6690-2":  # WBC
-                                    patient_data['wbc'] = float(value)
-                        
-                        # Get clinical observations for the selected date
-                        if db.clinical_obs_df is not None:
-                            patient_clinical_data = db.clinical_obs_df[
-                                (db.clinical_obs_df['Patient_ID'] == selected_patient) &
-                                (db.clinical_obs_df['Observation_Date'].dt.date == selected_date)
-                            ]
-                            
-                            for _, clinical_row in patient_clinical_data.iterrows():
-                                observation_type = clinical_row['Observation_Type']
-                                value = clinical_row['Observation_Value']
-                                
-                                # Map observation types to our expected fields
-                                if observation_type == "Temperature":
-                                    patient_data['fever'] = float(value)
-                                elif observation_type == "Chills":
-                                    patient_data['chills'] = value
-                                elif observation_type == "Skin_Appearance":
-                                    patient_data['skin_look'] = value
-                                elif observation_type == "Allergic_Reaction":
-                                    patient_data['allergic_state'] = value
-                                elif observation_type == "Therapy_Status":
-                                    patient_data['therapy'] = value
-                        
-                        # Set default values for missing data
-                        if 'gender' not in patient_data:
-                            patient_data['gender'] = 'unknown'
-                        if 'hemoglobin' not in patient_data:
-                            patient_data['hemoglobin'] = 12.0
-                        if 'wbc' not in patient_data:
-                            patient_data['wbc'] = 5.0
-                        if 'fever' not in patient_data:
-                            patient_data['fever'] = 37.0
-                        if 'chills' not in patient_data:
-                            patient_data['chills'] = 'No'
-                        if 'skin_look' not in patient_data:
-                            patient_data['skin_look'] = 'Normal'
-                        if 'allergic_state' not in patient_data:
-                            patient_data['allergic_state'] = 'No'
-                        if 'therapy' not in patient_data:
-                            patient_data['therapy'] = 'Other'
-                        
-                        # Run inference
-                        with st.spinner("Running inference on database patient..."):
-                            results = inference_engine.infer_patient_states(patient_data)
-                        
-                        # Display results
-                        st.success("✅ Database patient inference completed!")
-                        
-                        # Show patient info
-                        st.markdown("#### 👤 Patient Information")
-                        st.json(patient_data)
-                        
-                        # Show inferred states
-                        st.markdown("#### 🏥 Inferred States")
-                        if results["inferred_states"]:
-                            for state_type, state_value in results["inferred_states"].items():
-                                st.info(f"**{state_type.replace('_', ' ').title()}**: {state_value}")
-                        else:
-                            st.warning("No states could be inferred from the database data.")
-                        
-                        # Show treatment recommendations
-                        st.markdown("#### 💊 Treatment Recommendations")
-                        if results["treatment_recommendations"]:
-                            for rec in results["treatment_recommendations"]:
-                                priority_color = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(rec["priority"], "⚪")
-                                st.markdown(f"{priority_color} **{rec['priority'].title()} Priority**: {rec['recommendation']}")
-                        else:
-                            st.info("No treatment recommendations based on current states.")
-                        
-                        # Show reasoning chain
-                        with st.expander("🔍 View Reasoning Chain"):
-                            for i, step in enumerate(results["reasoning_chain"], 1):
-                                st.markdown(f"**Step {i}**: {step['type'].title()} Reasoning")
-                                st.markdown(f"- **Rule**: {step['rule']}")
-                                st.markdown(f"- **Input**: {step['input']}")
-                                st.markdown(f"- **Output**: {step['output']}")
-                                st.markdown("---")
-                    
-        except ImportError:
-            st.error("❌ Database module not available. Please ensure cdss_clean.py is in the same directory.")
-        except Exception as e:
-            st.error(f"❌ Error accessing database: {e}")
     
     with explain_tab:
         st.markdown("#### Inference Explanation")
