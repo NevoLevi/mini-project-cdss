@@ -1698,28 +1698,40 @@ def render_inference_engine(kb_data):
                     db.clinical_obs_df['Observation_Type'] == 'Chills'
                 ]['Observation_Value'].unique()
                 if len(chills_values) > 0:
-                    chills_options = sorted(list(chills_values))
+                    # Convert to strings and filter out numeric values
+                    chills_strings = [str(val) for val in chills_values if not isinstance(val, (int, float))]
+                    if chills_strings:
+                        chills_options = sorted(chills_strings)
                 
                 # Get unique skin appearance values
                 skin_values = db.clinical_obs_df[
                     db.clinical_obs_df['Observation_Type'] == 'Skin_Appearance'
                 ]['Observation_Value'].unique()
                 if len(skin_values) > 0:
-                    skin_look_options = sorted(list(skin_values))
+                    # Convert to strings and filter out numeric values
+                    skin_strings = [str(val) for val in skin_values if not isinstance(val, (int, float))]
+                    if skin_strings:
+                        skin_look_options = sorted(skin_strings)
                 
                 # Get unique allergic reaction values
                 allergic_values = db.clinical_obs_df[
                     db.clinical_obs_df['Observation_Type'] == 'Allergic_Reaction'
                 ]['Observation_Value'].unique()
                 if len(allergic_values) > 0:
-                    allergic_state_options = sorted(list(allergic_values))
+                    # Convert to strings and filter out numeric values
+                    allergic_strings = [str(val) for val in allergic_values if not isinstance(val, (int, float))]
+                    if allergic_strings:
+                        allergic_state_options = sorted(allergic_strings)
                 
                 # Get unique therapy status values
                 therapy_values = db.clinical_obs_df[
                     db.clinical_obs_df['Observation_Type'] == 'Therapy_Status'
                 ]['Observation_Value'].unique()
                 if len(therapy_values) > 0:
-                    therapy_options = sorted(list(therapy_values))
+                    # Convert to strings and filter out numeric values
+                    therapy_strings = [str(val) for val in therapy_values if not isinstance(val, (int, float))]
+                    if therapy_strings:
+                        therapy_options = sorted(therapy_strings)
                     
         except Exception as e:
             st.warning(f"⚠️ Could not load database values for dropdowns: {e}")
@@ -1732,7 +1744,7 @@ def render_inference_engine(kb_data):
                 patient_id = st.text_input("Patient ID", value="P001")
                 gender = st.selectbox("Gender", ["male", "female"])
                 hemoglobin = st.number_input("Hemoglobin (g/dL)", min_value=0.0, max_value=30.0, value=12.0, step=0.1)
-                wbc = st.number_input("WBC (K/μL)", min_value=0.0, max_value=100.0, value=5.0, step=0.1)
+                wbc = st.number_input("WBC (K/μL)", min_value=1000.0, max_value=50000.0, value=5.0, step=0.1)
                 fever = st.number_input("Fever (°C)", min_value=35.0, max_value=45.0, value=37.0, step=0.1)
             
             with col2:
