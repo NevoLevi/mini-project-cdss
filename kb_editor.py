@@ -1952,3 +1952,7 @@ def render_kb_editor():
     
     All changes are saved automatically to `knowledge_base.json` and ontology files are auto-synchronized.
     """) 
+
+# Main execution
+if __name__ == "__main__":
+    render_kb_editor()
