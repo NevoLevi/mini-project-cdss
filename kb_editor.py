@@ -1519,8 +1519,8 @@ def render_ontology_viewer(kb_data):
                                      for j, cell in enumerate(row):  # j = HGB partition index
                                          if cell:
                                              matrix_data.append({
-                                                 "WBC Partition": wbc_parts[i] if i < len(wbc_parts) else "N/A",
-                                                 "Hb Partition": hgb_parts[j] if j < len(hgb_parts) else "N/A",
+                                                 "WBC Partition": wbc_parts[j] if i < len(wbc_parts) else "N/A",
+                                                 "Hb Partition": hgb_parts[i] if j < len(hgb_parts) else "N/A",
                                                  "State": cell
                                              })
                                  
