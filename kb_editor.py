@@ -139,7 +139,6 @@ class OntologyInferenceEngine:
             "observations": patient_data,
             "inferred_states": {},
             "reasoning_chain": [],
-            "confidence_scores": {},
             "treatment_recommendations": []
         }
         
@@ -151,9 +150,6 @@ class OntologyInferenceEngine:
         
         # 3. Temporal Reasoning - Validity Periods
         self._apply_temporal_reasoning(patient_data, results)
-        
-        # 4. Confidence Scoring
-        self._calculate_confidence_scores(results)
         
         return results
     
@@ -172,8 +168,7 @@ class OntologyInferenceEngine:
                     "type": "declarative",
                     "rule": "hemoglobin_state",
                     "input": {"hemoglobin": patient_data["hemoglobin"], "gender": patient_data["gender"]},
-                    "output": hgb_state,
-                    "confidence": 0.95
+                    "output": hgb_state
                 })
         
         # Hematological State Inference (2:1 AND classification)
@@ -189,8 +184,7 @@ class OntologyInferenceEngine:
                     "type": "declarative",
                     "rule": "hematological_state",
                     "input": {"hemoglobin": patient_data["hemoglobin"], "wbc": patient_data["wbc"], "gender": patient_data["gender"]},
-                    "output": hema_state,
-                    "confidence": 0.90
+                    "output": hema_state
                 })
         
         # Systemic Toxicity Inference (4:1 MAXIMAL OR classification)
@@ -201,8 +195,7 @@ class OntologyInferenceEngine:
                 "type": "declarative",
                 "rule": "systemic_toxicity",
                 "input": {k: v for k, v in patient_data.items() if k in ["fever", "chills", "skin_look", "allergic_state"]},
-                "output": toxicity_grade,
-                "confidence": 0.85
+                "output": toxicity_grade
             })
     
     def _infer_hemoglobin_state(self, hgb_level, gender):
@@ -276,16 +269,14 @@ class OntologyInferenceEngine:
                     "rule_id": rule.get("id"),
                     "condition": rule.get("condition"),
                     "recommendation": rule.get("recommendation"),
-                    "priority": rule.get("priority", "medium"),
-                    "confidence": 0.80
+                    "priority": rule.get("priority", "medium")
                 }
                 results["treatment_recommendations"].append(recommendation)
                 results["reasoning_chain"].append({
                     "type": "procedural",
                     "rule": f"treatment_rule_{rule.get('id')}",
                     "input": rule.get("condition"),
-                    "output": rule.get("recommendation"),
-                    "confidence": 0.80
+                    "output": rule.get("recommendation")
                 })
     
     def _evaluate_treatment_condition(self, rule, patient_data, results):
@@ -329,18 +320,8 @@ class OntologyInferenceEngine:
                     "type": "temporal",
                     "rule": "validity_period",
                     "observation": observation,
-                    "validity": validity,
-                    "confidence": 0.70
+                    "validity": validity
                 })
-    
-    def _calculate_confidence_scores(self, results):
-        """Calculate confidence scores for inferences"""
-        for chain in results["reasoning_chain"]:
-            rule_type = chain["type"]
-            if rule_type == "declarative":
-                results["confidence_scores"][chain["rule"]] = chain["confidence"]
-            elif rule_type == "procedural":
-                results["confidence_scores"][f"treatment_{chain['rule']}"] = chain["confidence"]
     
     def _find_partition_index(self, value, bins):
         """Find the partition index for a value"""
@@ -364,8 +345,7 @@ class OntologyInferenceEngine:
             "observations_processed": list(patient_data.keys()),
             "states_inferred": results["inferred_states"],
             "treatments_recommended": len(results["treatment_recommendations"]),
-            "reasoning_steps": len(results["reasoning_chain"]),
-            "overall_confidence": sum(results["confidence_scores"].values()) / len(results["confidence_scores"]) if results["confidence_scores"] else 0
+            "reasoning_steps": len(results["reasoning_chain"])
         }
         
         return explanation
@@ -1693,9 +1673,9 @@ def render_inference_engine(kb_data):
     inference_engine = OntologyInferenceEngine(kb_data)
     
     # Create tabs for different inference modes
-    inference_tab, batch_tab, explain_tab = st.tabs([
+    inference_tab, db_tab, explain_tab = st.tabs([
         "🔍 Single Patient Inference", 
-        "📊 Batch Inference", 
+        "🗄️ Database Patient Selection", 
         "📝 Inference Explanation"
     ])
     
@@ -1766,64 +1746,173 @@ def render_inference_engine(kb_data):
                     st.markdown(f"- **Rule**: {step['rule']}")
                     st.markdown(f"- **Input**: {step['input']}")
                     st.markdown(f"- **Output**: {step['output']}")
-                    st.markdown(f"- **Confidence**: {step['confidence']:.2f}")
                     st.markdown("---")
     
-    with batch_tab:
-        st.markdown("#### Batch Inference")
-        st.info("Upload a CSV file with multiple patients for batch inference.")
+    with db_tab:
+        st.markdown("#### Database Patient Selection")
+        st.info("Select a patient from the database for a specific date to run inference.")
         
-        uploaded_file = st.file_uploader(
-            "Upload patient data CSV", 
-            type=['csv'],
-            help="CSV should have columns: patient_id,gender,hemoglobin,wbc,fever,chills,skin_look,allergic_state,therapy"
-        )
-        
-        if uploaded_file is not None:
-            import pandas as pd
+        try:
+            # Import the database module
+            from cdss_clean import CleanCDSSDatabase
             
-            try:
-                df = pd.read_csv(uploaded_file)
-                st.success(f"✅ Loaded {len(df)} patients")
+            # Initialize database
+            db = CleanCDSSDatabase()
+            
+            # Date selection
+            st.markdown("**📅 Select Date:**")
+            selected_date = st.date_input(
+                "Choose a date",
+                value=datetime.now().date(),
+                help="Select the date for which you want to analyze patient data"
+            )
+            
+            if st.button("🔍 Load Patients for Selected Date", type="primary"):
+                # Get patients with data on the selected date
+                patients_with_data = []
                 
-                if st.button("🚀 Run Batch Inference", type="primary"):
-                    results_list = []
+                # Convert date to datetime for comparison
+                selected_datetime = datetime.combine(selected_date, datetime.min.time())
+                
+                # Check lab results for the selected date
+                lab_data = db.lab_results_df
+                if lab_data is not None:
+                    lab_patients = lab_data[
+                        lab_data['Transaction_Time'].dt.date == selected_date
+                    ]['Patient_ID'].unique()
+                    patients_with_data.extend(lab_patients)
+                
+                # Check clinical observations for the selected date
+                clinical_data = db.clinical_obs_df
+                if clinical_data is not None:
+                    clinical_patients = clinical_data[
+                        clinical_data['Observation_Date'].dt.date == selected_date
+                    ]['Patient_ID'].unique()
+                    patients_with_data.extend(clinical_patients)
+                
+                # Remove duplicates
+                patients_with_data = list(set(patients_with_data))
+                
+                if patients_with_data:
+                    st.success(f"✅ Found {len(patients_with_data)} patients with data on {selected_date}")
                     
-                    with st.spinner(f"Processing {len(df)} patients..."):
-                        for _, row in df.iterrows():
-                            patient_data = row.to_dict()
-                            results = inference_engine.infer_patient_states(patient_data)
-                            results_list.append(results)
-                    
-                    # Display batch results
-                    st.success(f"✅ Batch inference completed for {len(results_list)} patients")
-                    
-                    # Create summary dataframe
-                    summary_data = []
-                    for result in results_list:
-                        summary_data.append({
-                            "Patient ID": result["patient_id"],
-                            "Hemoglobin State": result["inferred_states"].get("hemoglobin_state", "N/A"),
-                            "Hematological State": result["inferred_states"].get("hematological_state", "N/A"),
-                            "Systemic Toxicity": result["inferred_states"].get("systemic_toxicity", "N/A"),
-                            "Treatment Count": len(result["treatment_recommendations"]),
-                            "Avg Confidence": sum(result["confidence_scores"].values()) / len(result["confidence_scores"]) if result["confidence_scores"] else 0
-                        })
-                    
-                    summary_df = pd.DataFrame(summary_data)
-                    st.dataframe(summary_df)
-                    
-                    # Download results
-                    csv = summary_df.to_csv(index=False)
-                    st.download_button(
-                        label="📥 Download Batch Results",
-                        data=csv,
-                        file_name="batch_inference_results.csv",
-                        mime="text/csv"
+                    # Patient selection
+                    selected_patient = st.selectbox(
+                        "Select Patient:",
+                        patients_with_data,
+                        help="Choose a patient to run inference on"
                     )
-            
-            except Exception as e:
-                st.error(f"Error processing CSV: {e}")
+                    
+                    if selected_patient and st.button("🚀 Run Inference on Selected Patient", type="primary"):
+                        # Get patient data for the selected date
+                        patient_data = {}
+                        
+                        # Get demographic data
+                        demographics = db.get_patient_demographics(selected_patient)
+                        if demographics:
+                            patient_data.update(demographics)
+                        
+                        # Get lab values for the selected date
+                        if lab_data is not None:
+                            patient_lab_data = lab_data[
+                                (lab_data['Patient_ID'] == selected_patient) &
+                                (lab_data['Transaction_Time'].dt.date == selected_date)
+                            ]
+                            
+                            for _, lab_row in patient_lab_data.iterrows():
+                                loinc_code = lab_row['LOINC_Code']
+                                value = lab_row['Value']
+                                
+                                # Map LOINC codes to our expected fields
+                                if loinc_code == "30313-1":  # Hemoglobin
+                                    patient_data['hemoglobin'] = float(value)
+                                elif loinc_code == "6690-2":  # WBC
+                                    patient_data['wbc'] = float(value)
+                        
+                        # Get clinical observations for the selected date
+                        if clinical_data is not None:
+                            patient_clinical_data = clinical_data[
+                                (clinical_data['Patient_ID'] == selected_patient) &
+                                (clinical_data['Observation_Date'].dt.date == selected_date)
+                            ]
+                            
+                            for _, clinical_row in patient_clinical_data.iterrows():
+                                observation_type = clinical_row['Observation_Type']
+                                value = clinical_row['Observation_Value']
+                                
+                                # Map observation types to our expected fields
+                                if observation_type == "Temperature":
+                                    patient_data['fever'] = float(value)
+                                elif observation_type == "Chills":
+                                    patient_data['chills'] = value
+                                elif observation_type == "Skin_Appearance":
+                                    patient_data['skin_look'] = value
+                                elif observation_type == "Allergic_Reaction":
+                                    patient_data['allergic_state'] = value
+                                elif observation_type == "Therapy_Status":
+                                    patient_data['therapy'] = value
+                        
+                        # Set default values for missing data
+                        if 'gender' not in patient_data:
+                            patient_data['gender'] = 'unknown'
+                        if 'hemoglobin' not in patient_data:
+                            patient_data['hemoglobin'] = 12.0
+                        if 'wbc' not in patient_data:
+                            patient_data['wbc'] = 5.0
+                        if 'fever' not in patient_data:
+                            patient_data['fever'] = 37.0
+                        if 'chills' not in patient_data:
+                            patient_data['chills'] = 'No'
+                        if 'skin_look' not in patient_data:
+                            patient_data['skin_look'] = 'Normal'
+                        if 'allergic_state' not in patient_data:
+                            patient_data['allergic_state'] = 'No'
+                        if 'therapy' not in patient_data:
+                            patient_data['therapy'] = 'Other'
+                        
+                        # Run inference
+                        with st.spinner("Running inference on database patient..."):
+                            results = inference_engine.infer_patient_states(patient_data)
+                        
+                        # Display results
+                        st.success("✅ Database patient inference completed!")
+                        
+                        # Show patient info
+                        st.markdown("#### 👤 Patient Information")
+                        st.json(patient_data)
+                        
+                        # Show inferred states
+                        st.markdown("#### 🏥 Inferred States")
+                        if results["inferred_states"]:
+                            for state_type, state_value in results["inferred_states"].items():
+                                st.info(f"**{state_type.replace('_', ' ').title()}**: {state_value}")
+                        else:
+                            st.warning("No states could be inferred from the database data.")
+                        
+                        # Show treatment recommendations
+                        st.markdown("#### 💊 Treatment Recommendations")
+                        if results["treatment_recommendations"]:
+                            for rec in results["treatment_recommendations"]:
+                                priority_color = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(rec["priority"], "⚪")
+                                st.markdown(f"{priority_color} **{rec['priority'].title()} Priority**: {rec['recommendation']}")
+                        else:
+                            st.info("No treatment recommendations based on current states.")
+                        
+                        # Show reasoning chain
+                        with st.expander("🔍 View Reasoning Chain"):
+                            for i, step in enumerate(results["reasoning_chain"], 1):
+                                st.markdown(f"**Step {i}**: {step['type'].title()} Reasoning")
+                                st.markdown(f"- **Rule**: {step['rule']}")
+                                st.markdown(f"- **Input**: {step['input']}")
+                                st.markdown(f"- **Output**: {step['output']}")
+                                st.markdown("---")
+                else:
+                    st.warning(f"⚠️ No patients found with data on {selected_date}")
+                    
+        except ImportError:
+            st.error("❌ Database module not available. Please ensure cdss_clean.py is in the same directory.")
+        except Exception as e:
+            st.error(f"❌ Error accessing database: {e}")
     
     with explain_tab:
         st.markdown("#### Inference Explanation")
@@ -1844,7 +1933,6 @@ def render_inference_engine(kb_data):
             st.markdown("**Procedural Knowledge:**")
             st.markdown("- Treatment Recommendation Rules")
             st.markdown("- Temporal Validity Periods")
-            st.markdown("- Confidence Scoring")
         
         # Show inference process
         st.markdown("**🔄 Inference Process:**")
@@ -1852,7 +1940,6 @@ def render_inference_engine(kb_data):
         st.markdown("2. **Declarative Inference**: States are classified using rules")
         st.markdown("3. **Procedural Inference**: Treatment recommendations are generated")
         st.markdown("4. **Temporal Reasoning**: Validity periods are applied")
-        st.markdown("5. **Confidence Scoring**: Reliability of inferences is assessed")
         
         # Show example
         st.markdown("**📝 Example Inference:**")
