@@ -1737,23 +1737,25 @@ def render_inference_engine(kb_data):
             st.warning(f"⚠️ Could not load database values for dropdowns: {e}")
         
         # Patient data input form
-        with st.form("patient_inference_form"):
+        st.markdown("**Enter patient data for inference:**")
+        with st.form("patient_inference_form", clear_on_submit=False):
             col1, col2 = st.columns(2)
             
             with col1:
-                patient_id = st.text_input("Patient ID", value="P001")
-                gender = st.selectbox("Gender", ["male", "female"])
-                hemoglobin = st.number_input("Hemoglobin (g/dL)", min_value=0.0, max_value=30.0, value=12.0, step=0.1)
-                wbc = st.number_input("WBC (K/μL)", min_value=1000.0, max_value=50000.0, value=5.0, step=0.1)
-                fever = st.number_input("Fever (°C)", min_value=35.0, max_value=45.0, value=37.0, step=0.1)
+                patient_id = st.text_input("Patient ID", value="P001", key="form_patient_id")
+                gender = st.selectbox("Gender", ["male", "female"], key="form_gender")
+                hemoglobin = st.number_input("Hemoglobin (g/dL)", min_value=0.0, max_value=30.0, value=12.0, step=0.1, key="form_hemoglobin")
+                wbc = st.number_input("WBC (K/μL)", min_value=0.1, max_value=100.0, value=5.0, step=0.1, key="form_wbc")
+                fever = st.number_input("Fever (°C)", min_value=35.0, max_value=45.0, value=37.0, step=0.1, key="form_fever")
             
             with col2:
-                chills = st.selectbox("Chills", chills_options)
-                skin_look = st.selectbox("Skin Look", skin_look_options)
-                allergic_state = st.selectbox("Allergic State", allergic_state_options)
-                therapy = st.selectbox("Therapy", therapy_options)
+                chills = st.selectbox("Chills", chills_options, key="form_chills")
+                skin_look = st.selectbox("Skin Look", skin_look_options, key="form_skin_look")
+                allergic_state = st.selectbox("Allergic State", allergic_state_options, key="form_allergic_state")
+                therapy = st.selectbox("Therapy", therapy_options, key="form_therapy")
             
-            submitted = st.form_submit_button("🚀 Run Inference", type="primary")
+            # Submit button
+            submitted = st.form_submit_button("🚀 Run Inference", type="primary", use_container_width=True)
         
         if submitted:
             # Prepare patient data
