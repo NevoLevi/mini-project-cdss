@@ -1143,33 +1143,62 @@ def render_ontology_viewer(kb_data):
         # Display schema with syntax highlighting
         st.code(schema_content, language="plantuml")
         
-        # Schema components breakdown
+        # Schema components breakdown - Dynamic based on KB tables
         st.markdown("**🔍 Schema Components:**")
         col1, col2 = st.columns(2)
         
+        # Get all classification tables to build dynamic lists
+        classification_tables = kb_data.get("classification_tables", {})
+        
+        # Build observation types list
+        observation_types = []
+        for table_name in classification_tables.keys():
+            if table_name == "hemoglobin_state":
+                observation_types.append("`HemoglobinObservation`")
+            elif table_name == "hematological_state":
+                observation_types.append("`WBCObservation`")
+            elif table_name == "systemic_toxicity":
+                observation_types.extend([
+                    "`FeverObservation`",
+                    "`ChillsObservation`",
+                    "`SkinLookObservation`",
+                    "`AllergicStateObservation`",
+                    "`TherapyStatusObservation`"
+                ])
+            else:
+                # For new tables like "sugar-level"
+                observation_name = table_name.replace("_", "").title() + "Observation"
+                observation_types.append(f"`{observation_name}`")
+        
+        # Build state types list
+        state_types = []
+        for table_name in classification_tables.keys():
+            if table_name == "hemoglobin_state":
+                state_types.append("`HemoglobinState`")
+            elif table_name == "hematological_state":
+                state_types.append("`HematologicalState`")
+            elif table_name == "systemic_toxicity":
+                state_types.append("`SystemicToxicityGrade`")
+            else:
+                # For new tables like "sugar-level"
+                state_name = table_name.replace("_", "").title() + "State"
+                state_types.append(f"`{state_name}`")
+        
         with col1:
-            st.markdown("""
+            st.markdown(f"""
             **Core Classes:**
             - `Patient` - Patient information
             - `Observation` - Abstract base for all observations
             - `State` - Abstract base for all states
             
             **Observation Types:**
-            - `HemoglobinObservation`
-            - `WBCObservation`
-            - `FeverObservation`
-            - `ChillsObservation`
-            - `SkinLookObservation`
-            - `AllergicStateObservation`
-            - `TherapyStatusObservation`
+            {chr(10).join([f"- {obs_type}" for obs_type in observation_types])}
             """)
         
         with col2:
-            st.markdown("""
+            st.markdown(f"""
             **State Types:**
-            - `HemoglobinState`
-            - `HematologicalState`
-            - `SystemicToxicityGrade`
+            {chr(10).join([f"- {state_type}" for state_type in state_types])}
             
             **Rule Classes:**
             - `RangeSpec` - Value ranges with thresholds
