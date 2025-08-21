@@ -1773,21 +1773,68 @@ def render_inference_engine(kb_data):
                 all_patients.update(clinical_patients)
             
             # Convert to sorted list
-            all_patients = sorted(list(all_patients))
+            all_patient_ids = sorted(list(all_patients))
             
-            if not all_patients:
+            if not all_patient_ids:
                 st.warning("⚠️ No patients found in the database.")
                 return
             
-            st.success(f"✅ Found {len(all_patients)} patients in the database")
+            # Create patient name mapping
+            patient_name_mapping = {}
+            patient_age_mapping = {}
+            for patient_id in all_patient_ids:
+                demographics = db.get_patient_demographics(patient_id)
+                if demographics and demographics.get('Patient_Name'):
+                    patient_name = demographics['Patient_Name']
+                    patient_name_mapping[patient_id] = patient_name
+                    
+                    # Handle age (could be numpy int64)
+                    age = demographics.get('Age')
+                    if age is not None:
+                        # Convert numpy int64 to regular int if needed
+                        if hasattr(age, 'item'):
+                            age = age.item()
+                        patient_age_mapping[patient_id] = age
+                    else:
+                        patient_age_mapping[patient_id] = "Unknown"
+                else:
+                    # If no name available, use ID as fallback
+                    patient_name_mapping[patient_id] = f"Patient {patient_id}"
+                    patient_age_mapping[patient_id] = "Unknown"
+            
+            # Create display options with names and ages
+            patient_options = []
+            for patient_id in all_patient_ids:
+                patient_name = patient_name_mapping[patient_id]
+                age = patient_age_mapping[patient_id]
+                
+                # Handle patient ID (could be numpy int64)
+                display_id = patient_id
+                if hasattr(display_id, 'item'):
+                    display_id = display_id.item()
+                
+                if age != "Unknown":
+                    display_text = f"{patient_name} (ID: {display_id}, Age: {age})"
+                else:
+                    display_text = f"{patient_name} (ID: {display_id})"
+                patient_options.append((display_text, patient_id))
+            
+            st.success(f"✅ Found {len(all_patient_ids)} patients in the database")
             
             # Step 1: Patient Selection
             st.markdown("**👤 Step 1: Select Patient**")
-            selected_patient = st.selectbox(
+            selected_patient_display = st.selectbox(
                 "Choose a patient:",
-                all_patients,
+                options=[option[0] for option in patient_options],
                 help="Select a patient to analyze"
             )
+            
+            # Extract patient ID from selection
+            selected_patient = None
+            for display_text, patient_id in patient_options:
+                if display_text == selected_patient_display:
+                    selected_patient = patient_id
+                    break
             
             if selected_patient:
                 # Step 2: Get all available dates for the selected patient
@@ -1813,10 +1860,12 @@ def render_inference_engine(kb_data):
                 available_dates = sorted(list(available_dates))
                 
                 if not available_dates:
-                    st.warning(f"⚠️ No data found for patient {selected_patient}")
+                    patient_display_name = patient_name_mapping.get(selected_patient, selected_patient)
+                    st.warning(f"⚠️ No data found for patient {patient_display_name}")
                     return
                 
-                st.info(f"📊 Patient {selected_patient} has data on {len(available_dates)} different dates")
+                patient_display_name = patient_name_mapping.get(selected_patient, selected_patient)
+                st.info(f"📊 Patient {patient_display_name} has data on {len(available_dates)} different dates")
                 
                 # Date selection
                 selected_date = st.selectbox(
@@ -1832,8 +1881,15 @@ def render_inference_engine(kb_data):
                     # Show what data is available for this patient on this date
                     st.markdown("**📋 Available Data Summary:**")
                     
+                    # Handle patient ID display (could be numpy int64)
+                    display_patient_id = selected_patient
+                    if hasattr(display_patient_id, 'item'):
+                        display_patient_id = display_patient_id.item()
+                    
                     data_summary = {
-                        "Patient ID": selected_patient,
+                        "Patient Name": patient_name_mapping.get(selected_patient, selected_patient),
+                        "Patient ID": display_patient_id,
+                        "Age": patient_age_mapping.get(selected_patient, "Unknown"),
                         "Selected Date": selected_date,
                         "Lab Results": 0,
                         "Clinical Observations": 0
