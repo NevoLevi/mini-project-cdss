@@ -361,7 +361,7 @@ class OntologyInferenceEngine:
             actual_state = results["inferred_states"].get("hemoglobin_state")
             if actual_state != required_state:
                 return False
-        
+        #
         # Check hematological state condition
         if "hematological_state" in condition:
             required_state = condition["hematological_state"]
