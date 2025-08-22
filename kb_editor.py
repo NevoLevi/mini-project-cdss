@@ -1803,7 +1803,7 @@ def render_inference_engine(kb_data):
         st.markdown("#### Single Patient Inference")
         
         # Get unique values from database for dropdowns
-        chills_options = ["None", "Shaking", "Rigor", "Yes", "No"]
+        chills_options = ["None", "Shaking", "Rigor"]
         skin_look_options = ["Erythema", "Vesiculation", "Desquamation", "Exfoliation", "Normal"]
         allergic_state_options = ["Edema", "Bronchospasm", "Severe-Bronchospasm", "Anaphylactic-Shock", "No"]
         therapy_options = ["CCTG522", "Other"]
@@ -1815,14 +1815,14 @@ def render_inference_engine(kb_data):
             # Get unique values from clinical observations
             if db.clinical_obs_df is not None:
                 # Get unique chills values
-                chills_values = db.clinical_obs_df[
-                    db.clinical_obs_df['Observation_Type'] == 'Chills'
-                ]['Observation_Value'].unique()
-                if len(chills_values) > 0:
-                    # Convert to strings and filter out numeric values
-                    chills_strings = [str(val) for val in chills_values if not isinstance(val, (int, float))]
-                    if chills_strings:
-                        chills_options = sorted(chills_strings)
+                # chills_values = db.clinical_obs_df[
+                #     db.clinical_obs_df['Observation_Type'] == 'Chills'
+                # ]['Observation_Value'].unique()
+                # if len(chills_values) > 0:
+                #     # Convert to strings and filter out numeric values
+                #     chills_strings = [str(val) for val in chills_values if not isinstance(val, (int, float))]
+                #     if chills_strings:
+                #         chills_options = sorted(chills_strings)
                 
                 # Get unique skin appearance values
                 skin_values = db.clinical_obs_df[
