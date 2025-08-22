@@ -1914,7 +1914,9 @@ def render_inference_engine(kb_data):
                     st.markdown(f"{priority_color} **{rec['priority'].title()} Priority**")
                     st.markdown(f"**Rule Applied**: `{rec['condition']}`")
                     st.markdown(f"**Treatment Protocol**:")
-                    st.markdown(rec['recommendation'])
+                    # Add new lines before each bullet point for better readability
+                    formatted_recommendation = rec['recommendation'].replace('•', '\n•')
+                    st.markdown(formatted_recommendation)
                     st.markdown("---")
             else:
                 st.info("No treatment recommendations based on current states.")
@@ -1927,7 +1929,10 @@ def render_inference_engine(kb_data):
                     st.markdown(f"**For {gender.title()} patients:**")
                     for condition, treatment in gender_treatments.items():
                         with st.expander(f"Rule: {condition}"):
-                            st.markdown(treatment.replace('\u05d2\u20ac\u00a2', '•'))
+                            # Add new lines before each bullet point for better readability
+                            cleaned_treatment = treatment.replace('\u05d2\u20ac\u00a2', '•')
+                            formatted_treatment = cleaned_treatment.replace('•', '\n•')
+                            st.markdown(formatted_treatment)
                 else:
                     st.warning("No treatment rules found for this gender.")
             
