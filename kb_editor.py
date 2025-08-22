@@ -305,7 +305,7 @@ class OntologyInferenceEngine:
     
     def _infer_procedural_knowledge(self, patient_data, results):
         """Infer treatment recommendations based on procedural knowledge"""
-        # First try the new treatments structure
+        # Only use the new treatments structure - no fallback to old rules
         gender = patient_data.get("gender", "").lower()
         gender_treatments = self.treatments.get(gender, {})
         
@@ -321,7 +321,7 @@ class OntologyInferenceEngine:
             if hgb_state and hema_state and toxicity_grade:
                 condition_string = f"{hgb_state} + {hema_state} + {toxicity_grade}"
                 
-                # Look for matching treatment
+                # Look for perfectly matching treatment
                 if condition_string in gender_treatments:
                     treatment = gender_treatments[condition_string]
                     
@@ -342,27 +342,14 @@ class OntologyInferenceEngine:
                         "input": condition_string,
                         "output": cleaned_treatment
                     })
-                    return  # Found a match, no need to check old rules
-        
-        # Fallback to old treatment rules if no match found in new structure
-        treatment_rules = self.treatment_rules.get("rules", [])
-        
-        for rule in treatment_rules:
-            if self._evaluate_treatment_condition(rule, patient_data, results):
-                recommendation = {
-                    "rule_id": rule.get("id"),
-                    "condition": rule.get("condition"),
-                    "recommendation": rule.get("recommendation"),
-                    "priority": rule.get("priority", "medium"),
-                    "source": "old_treatment_rules"
-                }
-                results["treatment_recommendations"].append(recommendation)
-                results["reasoning_chain"].append({
-                    "type": "procedural",
-                    "rule": f"treatment_rule_{rule.get('id')}: {rule.get('condition')} → {rule.get('recommendation')}",
-                    "input": rule.get("condition"),
-                    "output": rule.get("recommendation")
-                })
+                else:
+                    # No perfect match found - add to reasoning chain
+                    results["reasoning_chain"].append({
+                        "type": "procedural",
+                        "rule": f"no_treatment_match: {condition_string} not found in {gender} treatments",
+                        "input": condition_string,
+                        "output": "No matching treatment rule found"
+                    })
     
     def _evaluate_treatment_condition(self, rule, patient_data, results):
         """Evaluate if a treatment condition is met"""
@@ -1816,9 +1803,9 @@ def render_inference_engine(kb_data):
         st.markdown("#### Single Patient Inference")
         
         # Get unique values from database for dropdowns
-        chills_options = ["None", "Shaking", "Rigor"]
-        skin_look_options = ["Erythema", "Vesiculation", "Desquamation", "Exfoliation"]
-        allergic_state_options = ["Edema", "Bronchospasm", "Severe-Bronchospasm", "Anaphylactic-Shock"]
+        chills_options = ["None", "Shaking", "Rigor", "Yes", "No"]
+        skin_look_options = ["Erythema", "Vesiculation", "Desquamation", "Exfoliation", "Normal"]
+        allergic_state_options = ["Edema", "Bronchospasm", "Severe-Bronchospasm", "Anaphylactic-Shock", "No"]
         therapy_options = ["CCTG522", "Other"]
         
         try:
@@ -1923,9 +1910,8 @@ def render_inference_engine(kb_data):
             if results["treatment_recommendations"]:
                 for rec in results["treatment_recommendations"]:
                     priority_color = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(rec["priority"], "⚪")
-                    source_icon = "🆕" if rec.get("source") == "new_treatments" else "📋"
                     
-                    st.markdown(f"{priority_color} **{rec['priority'].title()} Priority** {source_icon}")
+                    st.markdown(f"{priority_color} **{rec['priority'].title()} Priority**")
                     st.markdown(f"**Rule Applied**: `{rec['condition']}`")
                     st.markdown(f"**Treatment Protocol**:")
                     st.markdown(rec['recommendation'])
