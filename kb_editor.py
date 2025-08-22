@@ -233,40 +233,73 @@ class OntologyInferenceEngine:
     def _infer_systemic_toxicity(self, patient_data):
         """Infer systemic toxicity using 4:1 MAXIMAL OR classification"""
         table = self.classification_tables.get("systemic_toxicity", {})
-        rules = table.get("rules", {}).get("CCTG522", {}).get("symptoms", [])
+        rules = table.get("rules", {})
+        
+        # Check if therapy is CCTG522
+        if patient_data.get("therapy") != "CCTG522":
+            return None, "Therapy not CCTG522 - toxicity rules not applicable"
         
         max_grade = 0
         max_grade_rule = None
-        for rule in rules:
-            grade = self._evaluate_toxicity_rule(rule, patient_data)
-            if grade > max_grade:
-                max_grade = grade
-                max_grade_rule = rule
+        max_grade_symptom = None
+        
+        # Check each symptom type
+        for symptom_type, symptom_rules in rules.items():
+            for rule in symptom_rules:
+                grade = self._evaluate_toxicity_rule(rule, patient_data, symptom_type)
+                if grade > max_grade:
+                    max_grade = grade
+                    max_grade_rule = rule
+                    max_grade_symptom = symptom_type
         
         if max_grade > 0:
-            rule_details = f"MAXIMAL OR: {max_grade_rule.get('symptom')} = {max_grade_rule.get('value', 'N/A')} (Grade {max_grade})"
-            return f"Grade {max_grade}", rule_details
-        return None, None
+            # Convert grade number to Roman numeral
+            grade_roman = {1: "I", 2: "II", 3: "III", 4: "IV", 5: "V"}.get(max_grade, str(max_grade))
+            rule_details = f"MAXIMAL OR: {max_grade_symptom} = {max_grade_rule.get('value', max_grade_rule.get('range', 'N/A'))} → GRADE {grade_roman}"
+            return f"GRADE {grade_roman}", rule_details
+        return None, "No toxicity symptoms detected"
     
-    def _evaluate_toxicity_rule(self, rule, patient_data):
+    def _evaluate_toxicity_rule(self, rule, patient_data, symptom_type):
         """Evaluate a single toxicity rule"""
-        symptom = rule.get("symptom")
-        value = patient_data.get(symptom.lower().replace(" ", "_"))
+        # Map symptom types to patient data fields
+        field_mapping = {
+            "Fever": "fever",
+            "Chills": "chills", 
+            "Skin-look": "skin_look",
+            "Allergic-state": "allergic_state"
+        }
         
+        field_name = field_mapping.get(symptom_type)
+        if not field_name:
+            return 0
+            
+        value = patient_data.get(field_name)
         if value is None:
             return 0
         
         # Numeric evaluation (e.g., fever)
         if isinstance(value, (int, float)):
-            min_val = rule.get("min", 0)
-            max_val = rule.get("max", float('inf'))
-            if min_val <= value <= max_val:
-                return rule.get("grade", 0)
+            if "range" in rule:
+                min_val = rule["range"][0]
+                max_val = rule["range"][1]
+                if min_val <= value <= max_val:
+                    # Parse grade from string like "GRADE I" to number
+                    grade_str = rule.get("grade", "")
+                    if "GRADE" in grade_str.upper():
+                        grade_num = {"I": 1, "II": 2, "III": 3, "IV": 4, "V": 5}.get(grade_str.split()[-1], 0)
+                        return grade_num
+                    return 0
         
         # Symbolic evaluation (e.g., chills, skin_look)
         elif isinstance(value, str):
-            if value.lower() == rule.get("value", "").lower():
-                return rule.get("grade", 0)
+            if "value" in rule:
+                if value.lower() == rule["value"].lower():
+                    # Parse grade from string like "GRADE I" to number
+                    grade_str = rule.get("grade", "")
+                    if "GRADE" in grade_str.upper():
+                        grade_num = {"I": 1, "II": 2, "III": 3, "IV": 4, "V": 5}.get(grade_str.split()[-1], 0)
+                        return grade_num
+                    return 0
         
         return 0
     
@@ -806,7 +839,7 @@ end note
     # Add treatment rules to instances
     treatments = kb_data.get("treatments", {})
     if treatments:
-        instances_content += "' =====================\\n' Treatment Rules\\n' =====================\\n"
+        instances_content += "' =====================\n' Treatment Rules\n' =====================\n"
         
         for gender, gender_treatments in treatments.items():
             instances_content += f"' {gender.title()} Treatment Rules:\\n"
@@ -816,17 +849,17 @@ end note
                 
                 # Create treatment recommendation object
                 treatment_id = f"Tx_{gender}_{condition.replace(' ', '_').replace('+', '_')}"
-                instances_content += f"object {treatment_id} <<TreatmentRecommendation>> {{\\n"
-                instances_content += f"  applicableGender=\\"{gender}\\"\\n"
-                instances_content += f"  recommends=\\"{cleaned_recommendation}\\"\\n"
-                instances_content += "}\\n"
+                instances_content += f"object {treatment_id} <<TreatmentRecommendation>> {{\n"
+                instances_content += f"  applicableGender=\"{gender}\"\n"
+                instances_content += f"  recommends=\"{cleaned_recommendation}\"\n"
+                instances_content += "}\n"
                 
                 # Parse condition to extract states
                 states = [s.strip() for s in condition.split('+')]
                 for state in states:
                     state_obj = state.replace(' ', '_')
-                    instances_content += f"{treatment_id} --> {state_obj} : applicableIf\\n"
-                instances_content += "\\n"
+                    instances_content += f"{treatment_id} --> {state_obj} : applicableIf\n"
+                instances_content += "\n"
     
     instances_content += "@enduml"
     
