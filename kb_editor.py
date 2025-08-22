@@ -134,7 +134,6 @@ class OntologyInferenceEngine:
             Dict with inferred states and reasoning chain
         """
         results = {
-            "patient_id": patient_data.get("patient_id", "Unknown"),
             "inference_time": datetime.now().isoformat(),
             "observations": patient_data,
             "inferred_states": {},
@@ -158,7 +157,7 @@ class OntologyInferenceEngine:
         
         # Hemoglobin State Inference (1:1 classification)
         if "hemoglobin" in patient_data and "gender" in patient_data:
-            hgb_state = self._infer_hemoglobin_state(
+            hgb_state, rule_details = self._infer_hemoglobin_state(
                 patient_data["hemoglobin"], 
                 patient_data["gender"]
             )
@@ -166,14 +165,14 @@ class OntologyInferenceEngine:
                 results["inferred_states"]["hemoglobin_state"] = hgb_state
                 results["reasoning_chain"].append({
                     "type": "declarative",
-                    "rule": "hemoglobin_state",
+                    "rule": f"hemoglobin_state_classification: {rule_details}",
                     "input": {"hemoglobin": patient_data["hemoglobin"], "gender": patient_data["gender"]},
                     "output": hgb_state
                 })
         
         # Hematological State Inference (2:1 AND classification)
         if "hemoglobin" in patient_data and "wbc" in patient_data and "gender" in patient_data:
-            hema_state = self._infer_hematological_state(
+            hema_state, rule_details = self._infer_hematological_state(
                 patient_data["hemoglobin"],
                 patient_data["wbc"], 
                 patient_data["gender"]
@@ -182,18 +181,18 @@ class OntologyInferenceEngine:
                 results["inferred_states"]["hematological_state"] = hema_state
                 results["reasoning_chain"].append({
                     "type": "declarative",
-                    "rule": "hematological_state",
+                    "rule": f"hematological_state_classification: {rule_details}",
                     "input": {"hemoglobin": patient_data["hemoglobin"], "wbc": patient_data["wbc"], "gender": patient_data["gender"]},
                     "output": hema_state
                 })
         
         # Systemic Toxicity Inference (4:1 MAXIMAL OR classification)
-        toxicity_grade = self._infer_systemic_toxicity(patient_data)
+        toxicity_grade, rule_details = self._infer_systemic_toxicity(patient_data)
         if toxicity_grade:
             results["inferred_states"]["systemic_toxicity"] = toxicity_grade
             results["reasoning_chain"].append({
                 "type": "declarative",
-                "rule": "systemic_toxicity",
+                "rule": f"systemic_toxicity_classification: {rule_details}",
                 "input": {k: v for k, v in patient_data.items() if k in ["fever", "chills", "skin_look", "allergic_state"]},
                 "output": toxicity_grade
             })
@@ -205,8 +204,9 @@ class OntologyInferenceEngine:
         
         for rule in rules:
             if rule.get("min", 0) <= hgb_level < rule.get("max", float('inf')):
-                return rule.get("state")
-        return None
+                rule_details = f"HGB {rule.get('min')}-{rule.get('max')} g/dL for {gender}"
+                return rule.get("state"), rule_details
+        return None, None
     
     def _infer_hematological_state(self, hgb, wbc, gender):
         """Infer hematological state using 2:1 AND classification"""
@@ -223,8 +223,11 @@ class OntologyInferenceEngine:
         
         if hgb_idx is not None and wbc_idx is not None:
             # Matrix is structured as [wbc_idx][hgb_idx] - WBC rows, HGB columns
-            return matrix[wbc_idx][hgb_idx]
-        return None
+            hgb_range = hgb_bins[hgb_idx] if hgb_idx < len(hgb_bins) else "N/A"
+            wbc_range = wbc_bins[wbc_idx] if wbc_idx < len(wbc_bins) else "N/A"
+            rule_details = f"HGB: {hgb_range}, WBC: {wbc_range} for {gender}"
+            return matrix[wbc_idx][hgb_idx], rule_details
+        return None, None
     
     def _infer_systemic_toxicity(self, patient_data):
         """Infer systemic toxicity using 4:1 MAXIMAL OR classification"""
@@ -232,11 +235,17 @@ class OntologyInferenceEngine:
         rules = table.get("rules", {}).get("CCTG522", {}).get("symptoms", [])
         
         max_grade = 0
+        max_grade_rule = None
         for rule in rules:
             grade = self._evaluate_toxicity_rule(rule, patient_data)
-            max_grade = max(max_grade, grade)
+            if grade > max_grade:
+                max_grade = grade
+                max_grade_rule = rule
         
-        return f"Grade {max_grade}" if max_grade > 0 else None
+        if max_grade > 0:
+            rule_details = f"MAXIMAL OR: {max_grade_rule.get('symptom')} = {max_grade_rule.get('value', 'N/A')} (Grade {max_grade})"
+            return f"Grade {max_grade}", rule_details
+        return None, None
     
     def _evaluate_toxicity_rule(self, rule, patient_data):
         """Evaluate a single toxicity rule"""
@@ -275,7 +284,7 @@ class OntologyInferenceEngine:
                 results["treatment_recommendations"].append(recommendation)
                 results["reasoning_chain"].append({
                     "type": "procedural",
-                    "rule": f"treatment_rule_{rule.get('id')}",
+                    "rule": f"treatment_rule_{rule.get('id')}: {rule.get('condition')} → {rule.get('recommendation')}",
                     "input": rule.get("condition"),
                     "output": rule.get("recommendation")
                 })
@@ -342,7 +351,7 @@ class OntologyInferenceEngine:
         results = self.infer_patient_states(patient_data)
         
         explanation = {
-            "summary": f"Inference completed for patient {results['patient_id']}",
+            "summary": "Inference completed successfully",
             "observations_processed": list(patient_data.keys()),
             "states_inferred": results["inferred_states"],
             "treatments_recommended": len(results["treatment_recommendations"]),
@@ -1743,7 +1752,6 @@ def render_inference_engine(kb_data):
             col1, col2 = st.columns(2)
             
             with col1:
-                patient_id = st.text_input("Patient ID", value="P001", key="form_patient_id")
                 gender = st.selectbox("Gender", ["male", "female"], key="form_gender")
                 hemoglobin = st.number_input("Hemoglobin (g/dL)", min_value=0.0, max_value=30.0, value=12.0, step=0.1, key="form_hemoglobin")
                 wbc = st.number_input("WBC (K/μL)", min_value=0.1, max_value=20000.0, value=500.0, step=0.1, key="form_wbc")
@@ -1761,7 +1769,6 @@ def render_inference_engine(kb_data):
         if submitted:
             # Prepare patient data
             patient_data = {
-                "patient_id": patient_id,
                 "gender": gender,
                 "hemoglobin": hemoglobin,
                 "wbc": wbc,
@@ -1800,7 +1807,7 @@ def render_inference_engine(kb_data):
             with st.expander("🔍 View Reasoning Chain"):
                 for i, step in enumerate(results["reasoning_chain"], 1):
                     st.markdown(f"**Step {i}**: {step['type'].title()} Reasoning")
-                    st.markdown(f"- **Rule**: {step['rule']}")
+                    st.markdown(f"- **Rule Applied**: {step['rule']}")
                     st.markdown(f"- **Input**: {step['input']}")
                     st.markdown(f"- **Output**: {step['output']}")
                     st.markdown("---")
@@ -1835,7 +1842,6 @@ def render_inference_engine(kb_data):
         # Show example
         st.markdown("**📝 Example Inference:**")
         example_data = {
-            "patient_id": "EXAMPLE",
             "gender": "female",
             "hemoglobin": 9.5,
             "wbc": 3.2,
