@@ -111,6 +111,7 @@ class OntologyInferenceEngine:
         self.kb_data = kb_data
         self.classification_tables = kb_data.get("classification_tables", {})
         self.treatment_rules = kb_data.get("treatment_rules", {})
+        self.treatments = kb_data.get("treatments", {})
         self.validity_periods = kb_data.get("validity_periods", {})
     
     def infer_patient_states(self, patient_data):
@@ -271,6 +272,46 @@ class OntologyInferenceEngine:
     
     def _infer_procedural_knowledge(self, patient_data, results):
         """Infer treatment recommendations based on procedural knowledge"""
+        # First try the new treatments structure
+        gender = patient_data.get("gender", "").lower()
+        gender_treatments = self.treatments.get(gender, {})
+        
+        # Build the combined state string
+        inferred_states = results["inferred_states"]
+        if inferred_states:
+            # Get the three key states
+            hgb_state = inferred_states.get("hemoglobin_state", "")
+            hema_state = inferred_states.get("hematological_state", "")
+            toxicity_grade = inferred_states.get("systemic_toxicity", "")
+            
+            # Build the condition string (same format as in the treatments data)
+            if hgb_state and hema_state and toxicity_grade:
+                condition_string = f"{hgb_state} + {hema_state} + {toxicity_grade}"
+                
+                # Look for matching treatment
+                if condition_string in gender_treatments:
+                    treatment = gender_treatments[condition_string]
+                    
+                    # Clean the treatment text (replace encoded bullets with proper bullets)
+                    cleaned_treatment = treatment.replace('\u05d2\u20ac\u00a2', '•')
+                    
+                    recommendation = {
+                        "rule_id": f"treatment_{gender}_{condition_string.replace(' ', '_').replace('+', '_')}",
+                        "condition": condition_string,
+                        "recommendation": cleaned_treatment,
+                        "priority": "high",
+                        "source": "new_treatments"
+                    }
+                    results["treatment_recommendations"].append(recommendation)
+                    results["reasoning_chain"].append({
+                        "type": "procedural",
+                        "rule": f"treatment_rule: {condition_string} → {cleaned_treatment}",
+                        "input": condition_string,
+                        "output": cleaned_treatment
+                    })
+                    return  # Found a match, no need to check old rules
+        
+        # Fallback to old treatment rules if no match found in new structure
         treatment_rules = self.treatment_rules.get("rules", [])
         
         for rule in treatment_rules:
@@ -279,7 +320,8 @@ class OntologyInferenceEngine:
                     "rule_id": rule.get("id"),
                     "condition": rule.get("condition"),
                     "recommendation": rule.get("recommendation"),
-                    "priority": rule.get("priority", "medium")
+                    "priority": rule.get("priority", "medium"),
+                    "source": "old_treatment_rules"
                 }
                 results["treatment_recommendations"].append(recommendation)
                 results["reasoning_chain"].append({
@@ -597,6 +639,11 @@ class SymptomToGradeRule {
   maxVal: Decimal [0..1]
 }
 
+class TreatmentRecommendation {
+  applicableGender: String
+  recommends: String
+}
+
 ' Associations
 Patient "1" -- "0..*" Observation : hasObservation
 Patient "1" -- "0..*" State : hasState
@@ -609,6 +656,10 @@ MatrixCell "1" --> "1" State : mapsTo
 SymptomToGradeRule "0..*" --> "1" TherapyStatusObservation : appliesIfTherapy
 SymptomToGradeRule "1" --> "1" Observation : symptomObservation
 SymptomToGradeRule "1" --> "1" SystemicToxicityGrade : yieldsGrade
+
+' A treatment is applicable when a combination of patient states holds.
+' (Typically: HemoglobinState + HematologicalState + SystemicToxicityGrade)
+TreatmentRecommendation "1" --> "1..*" State : applicableIf
 
 note right of RangeSpec
   Used for value thresholds per gender.
@@ -751,6 +802,31 @@ end note
                             state_class = table_name.replace("_", "").title() + "State"
                             instances_content += f"object {state_name} <<{state_class}>>\n"
                             instances_content += f"{range_prefix}_{gender}_{i} --> {state_name} : mapsToState\n\n"
+    
+    # Add treatment rules to instances
+    treatments = kb_data.get("treatments", {})
+    if treatments:
+        instances_content += "' =====================\\n' Treatment Rules\\n' =====================\\n"
+        
+        for gender, gender_treatments in treatments.items():
+            instances_content += f"' {gender.title()} Treatment Rules:\\n"
+            for i, (condition, recommendation) in enumerate(gender_treatments.items()):
+                # Clean the recommendation text (replace encoded bullets with proper bullets)
+                cleaned_recommendation = recommendation.replace('\\u05d2\\u20ac\\u00a2', '•')
+                
+                # Create treatment recommendation object
+                treatment_id = f"Tx_{gender}_{condition.replace(' ', '_').replace('+', '_')}"
+                instances_content += f"object {treatment_id} <<TreatmentRecommendation>> {{\\n"
+                instances_content += f"  applicableGender=\\"{gender}\\"\\n"
+                instances_content += f"  recommends=\\"{cleaned_recommendation}\\"\\n"
+                instances_content += "}\\n"
+                
+                # Parse condition to extract states
+                states = [s.strip() for s in condition.split('+')]
+                for state in states:
+                    state_obj = state.replace(' ', '_')
+                    instances_content += f"{treatment_id} --> {state_obj} : applicableIf\\n"
+                instances_content += "\\n"
     
     instances_content += "@enduml"
     
@@ -1547,7 +1623,7 @@ def render_ontology_viewer(kb_data):
                                  st.markdown(f"  - Range {i+1}: {rule['range'][0]} - {rule['range'][1]} → {rule.get('grade', 'N/A')}")
                              elif "value" in rule:
                                  st.markdown(f"  - Value {i+1}: {rule['value']} → {rule.get('grade', 'N/A')}")
-                 
+                                  
                  else:
                      # Handle new tables (like "sugar-level")
                      st.markdown(f"**📊 {table_display_name} ({table_type}):**")
@@ -1567,6 +1643,21 @@ def render_ontology_viewer(kb_data):
                                  rules = table_data["rules"][gender]
                                  # Handle OR-based tables
                                  st.markdown("  *OR-based classification*")
+             
+             # Add treatment rules display
+             treatments = kb_data.get("treatments", {})
+             if treatments:
+                 st.markdown("**💊 Treatment Rules:**")
+                 for gender, gender_treatments in treatments.items():
+                     st.markdown(f"**{gender.title()} Treatment Rules:**")
+                     for condition, recommendation in gender_treatments.items():
+                         # Clean the recommendation text (replace encoded bullets with proper bullets)
+                         cleaned_recommendation = recommendation.replace('\u05d2\u20ac\u00a2', '•')
+                         with st.expander(f"Rule: {condition}"):
+                             st.markdown("**Condition:**")
+                             st.code(condition)
+                             st.markdown("**Treatment Protocol:**")
+                             st.markdown(cleaned_recommendation)
              
              # Now display the actual instances file content
              st.markdown("---")
@@ -1799,9 +1890,27 @@ def render_inference_engine(kb_data):
             if results["treatment_recommendations"]:
                 for rec in results["treatment_recommendations"]:
                     priority_color = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(rec["priority"], "⚪")
-                    st.markdown(f"{priority_color} **{rec['priority'].title()} Priority**: {rec['recommendation']}")
+                    source_icon = "🆕" if rec.get("source") == "new_treatments" else "📋"
+                    
+                    st.markdown(f"{priority_color} **{rec['priority'].title()} Priority** {source_icon}")
+                    st.markdown(f"**Rule Applied**: `{rec['condition']}`")
+                    st.markdown(f"**Treatment Protocol**:")
+                    st.markdown(rec['recommendation'])
+                    st.markdown("---")
             else:
                 st.info("No treatment recommendations based on current states.")
+                
+                # Show available treatment rules for debugging
+                st.markdown("**🔍 Available Treatment Rules:**")
+                gender = patient_data.get("gender", "").lower()
+                gender_treatments = kb_data.get("treatments", {}).get(gender, {})
+                if gender_treatments:
+                    st.markdown(f"**For {gender.title()} patients:**")
+                    for condition, treatment in gender_treatments.items():
+                        with st.expander(f"Rule: {condition}"):
+                            st.markdown(treatment.replace('\u05d2\u20ac\u00a2', '•'))
+                else:
+                    st.warning("No treatment rules found for this gender.")
             
             # Show reasoning chain
             with st.expander("🔍 View Reasoning Chain"):

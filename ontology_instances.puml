@@ -275,4 +275,98 @@ AllergicStateObservationRule_0 --> GRADE_I : yieldsGrade
 AllergicStateObservationRule_1 --> GRADE_II : yieldsGrade
 AllergicStateObservationRule_2 --> GRADE_III : yieldsGrade
 AllergicStateObservationRule_3 --> GRADE_IV : yieldsGrade
+
+
+
+
+' =====================
+' Treatments — MALE
+' =====================
+object Tx_male_Severe_Anemia_Pancytopenia_GRADE_I <<TreatmentRecommendation>> {
+  applicableGender="male"
+  recommends="• Measure BP once a week"
+}
+Tx_male_Severe_Anemia_Pancytopenia_GRADE_I --> Severe_Anemia : applicableIf
+Tx_male_Severe_Anemia_Pancytopenia_GRADE_I --> Pancytopenia : applicableIf
+Tx_male_Severe_Anemia_Pancytopenia_GRADE_I --> GRADE_I : applicableIf
+
+object Tx_male_Moderate_Anemia_Anemia_GRADE_II <<TreatmentRecommendation>> {
+  applicableGender="male"
+  recommends="• Measure BP every 3 days\n• Give aspirin 5g twice a week"
+}
+Tx_male_Moderate_Anemia_Anemia_GRADE_II --> Moderate_Anemia : applicableIf
+Tx_male_Moderate_Anemia_Anemia_GRADE_II --> Anemia : applicableIf
+Tx_male_Moderate_Anemia_Anemia_GRADE_II --> GRADE_II : applicableIf
+
+object Tx_male_Mild_Anemia_Suspected_Leukemia_GRADE_III <<TreatmentRecommendation>> {
+  applicableGender="male"
+  recommends="• Measure BP every day\n• Give aspirin 15g every day\n• Diet consultation"
+}
+Tx_male_Mild_Anemia_Suspected_Leukemia_GRADE_III --> Mild_Anemia : applicableIf
+Tx_male_Mild_Anemia_Suspected_Leukemia_GRADE_III --> Suspected_Leukemia : applicableIf
+Tx_male_Mild_Anemia_Suspected_Leukemia_GRADE_III --> GRADE_III : applicableIf
+
+object Tx_male_Normal_Hemoglobin_Leukemoid_reaction_GRADE_IV <<TreatmentRecommendation>> {
+  applicableGender="male"
+  recommends="• Measure BP twice a day\n• Give aspirin 15g every day\n• Exercise consultation\n• Diet consultation"
+}
+Tx_male_Normal_Hemoglobin_Leukemoid_reaction_GRADE_IV --> Normal_Hemoglobin : applicableIf
+Tx_male_Normal_Hemoglobin_Leukemoid_reaction_GRADE_IV --> Leukemoid_reaction : applicableIf
+Tx_male_Normal_Hemoglobin_Leukemoid_reaction_GRADE_IV --> GRADE_IV : applicableIf
+
+object Tx_male_Polyhemia_Suspected_Polycytemia_Vera_GRADE_IV <<TreatmentRecommendation>> {
+  applicableGender="male"
+  recommends="• Measure BP every hour\n• Give 1 gr magnesium every hour\n• Exercise consultation\n• Call family"
+}
+Tx_male_Polyhemia_Suspected_Polycytemia_Vera_GRADE_IV --> Polyhemia : applicableIf
+Tx_male_Polyhemia_Suspected_Polycytemia_Vera_GRADE_IV --> Suspected_Polycytemia_Vera : applicableIf
+Tx_male_Polyhemia_Suspected_Polycytemia_Vera_GRADE_IV --> GRADE_IV : applicableIf
+
+
+' =====================
+' Treatments — FEMALE
+' =====================
+object Tx_female_Severe_Anemia_Pancytopenia_GRADE_I <<TreatmentRecommendation>> {
+  applicableGender="female"
+  recommends="• Measure BP every 3 days"
+}
+Tx_female_Severe_Anemia_Pancytopenia_GRADE_I --> Severe_Anemia : applicableIf
+Tx_female_Severe_Anemia_Pancytopenia_GRADE_I --> Pancytopenia : applicableIf
+Tx_female_Severe_Anemia_Pancytopenia_GRADE_I --> GRADE_I : applicableIf
+
+object Tx_female_Moderate_Anemia_Anemia_GRADE_II <<TreatmentRecommendation>> {
+  applicableGender="female"
+  recommends="• Measure BP every 3 days\n• Give Celectone 2g twice a day for two days drug treatment"
+}
+Tx_female_Moderate_Anemia_Anemia_GRADE_II --> Moderate_Anemia : applicableIf
+Tx_female_Moderate_Anemia_Anemia_GRADE_II --> Anemia : applicableIf
+Tx_female_Moderate_Anemia_Anemia_GRADE_II --> GRADE_II : applicableIf
+
+object Tx_female_Mild_Anemia_Suspected_Leukemia_GRADE_III <<TreatmentRecommendation>> {
+  applicableGender="female"
+  recommends="• Measure BP every day\n• Give 1 gr magnesium every 3 hours\n• Diet consultation"
+}
+Tx_female_Mild_Anemia_Suspected_Leukemia_GRADE_III --> Mild_Anemia : applicableIf
+Tx_female_Mild_Anemia_Suspected_Leukemia_GRADE_III --> Suspected_Leukemia : applicableIf
+Tx_female_Mild_Anemia_Suspected_Leukemia_GRADE_III --> GRADE_III : applicableIf
+
+object Tx_female_Normal_Hemoglobin_Leukemoid_reaction_GRADE_IV <<TreatmentRecommendation>> {
+  applicableGender="female"
+  recommends="• Measure BP twice a a day\n• Give 1 gr magnesium every hour\n• Exercise consultation\n• Diet consultation"
+}
+Tx_female_Normal_Hemoglobin_Leukemoid_reaction_GRADE_IV --> Normal_Hemoglobin : applicableIf
+Tx_female_Normal_Hemoglobin_Leukemoid_reaction_GRADE_IV --> Leukemoid_reaction : applicableIf
+Tx_female_Normal_Hemoglobin_Leukemoid_reaction_GRADE_IV --> GRADE_IV : applicableIf
+
+object Tx_female_Polyhemia_Suspected_Polycytemia_Vera_GRADE_IV <<TreatmentRecommendation>> {
+  applicableGender="female"
+  recommends="• Measure BP every hour\n• Give 1 gr magnesium every hour\n• Exercise consultation\n• Call help"
+}
+Tx_female_Polyhemia_Suspected_Polycytemia_Vera_GRADE_IV --> Polyhemia : applicableIf
+Tx_female_Polyhemia_Suspected_Polycytemia_Vera_GRADE_IV --> Suspected_Polycytemia_Vera : applicableIf
+Tx_female_Polyhemia_Suspected_Polycytemia_Vera_GRADE_IV --> GRADE_IV : applicableIf
+
+
+
+
 @enduml

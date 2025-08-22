@@ -96,4 +96,20 @@ note right of SymptomToGradeRule
   For symbolic symptoms (Chills/Skin/Sensitivity),
   use 'label' to hold the symbolic value.
 end note
+
+
+class TreatmentRecommendation {
+  applicableGender: String
+  recommends: String
+}
+
+' A treatment is applicable when a combination of patient states holds.
+' (Typically: HemoglobinState + HematologicalState + SystemicToxicityGrade)
+TreatmentRecommendation "1" --> "1..*" State : applicableIf
+
+' Optional (documentational): when computed, a patient could be linked to eligible treatments.
+' Patient "0..*" --> "0..*" TreatmentRecommendation : eligibleFor
+
 @enduml
+
+
