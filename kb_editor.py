@@ -1891,14 +1891,13 @@ def render_kb_editor():
         return
     
     # Create tabs for different sections
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "📊 Classification Tables", 
         "🏥 Treatment Rules", 
         "⏰ Validity Periods",
         "📁 File Management",
         "📋 Overview",
-        "🔗 Ontology Viewer",
-        "🤖 Inference Engine"
+        "🔗 Ontology Viewer"
     ])
     
     with tab1:
@@ -1919,9 +1918,6 @@ def render_kb_editor():
     with tab6:
         render_ontology_viewer(kb_data)
     
-    with tab7:
-        render_inference_engine(kb_data)
-    
     # Status information
     st.markdown("---")
     st.markdown("""
@@ -1932,7 +1928,6 @@ def render_kb_editor():
     - **File Management**: Import/export complete knowledge bases and sync ontology files
     - **Overview**: Get a summary of your entire knowledge base
     - **Ontology Viewer**: View and manage your PlantUML ontology files with organized components
-    - **Inference Engine**: Perform formal inference using your ontology to derive patient states and treatments
     
     All changes are saved automatically to `knowledge_base.json` and ontology files are auto-synchronized.
     """) 

@@ -273,8 +273,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Enhanced tabs for Part 2 requirements
-tab_dashboard, tab_context_queries, tab_kb_editor, tab_recommendations, tab_intervals, tab_hist, tab_upd, tab_del = st.tabs([
-    "🏥 Clinical Dashboard", "🔍 Smart Queries", "📚 Knowledge Base", 
+tab_dashboard, tab_context_queries, tab_kb_editor, tab_inference_engine, tab_recommendations, tab_intervals, tab_hist, tab_upd, tab_del = st.tabs([
+    "🏥 Clinical Dashboard", "🔍 Smart Queries", "📚 Knowledge Base", "🤖 Inference Engine",
     "💊 Recommendation Board", "📊 State Analysis", "📋 Patient History", "✏️ Update Records", "🗑️ Delete Records"
 ])
 
@@ -1005,6 +1005,15 @@ with tab_context_queries:
 with tab_kb_editor:
     from kb_editor import render_kb_editor
     render_kb_editor()
+
+# Inference Engine Tab
+with tab_inference_engine:
+    from kb_editor import render_inference_engine, load_kb
+    kb_data = load_kb()
+    if kb_data:
+        render_inference_engine(kb_data)
+    else:
+        st.error("❌ Failed to load knowledge base. Please check the file.")
 
 # Treatment Board Tab
 with tab_recommendations:
