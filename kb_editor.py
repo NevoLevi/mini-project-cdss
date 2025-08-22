@@ -1893,7 +1893,7 @@ def render_kb_editor():
         "📋 Overview",
         "🔗 Ontology Viewer",
         "🤖 Inference Engine"
-    ])
+    ])#
     
     with tab1:
         render_classification_tables_editor(kb_data)
